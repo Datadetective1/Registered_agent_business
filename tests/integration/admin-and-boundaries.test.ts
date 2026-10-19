@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { auditEvents, entities, entityServices, informationRequests, notifications, orders, providerOrders, subscriptions } from "@/db/schema";
@@ -47,7 +47,7 @@ describe("admin fulfillment workflow", () => {
     await expect(changeOrderStatus(order.id, { to: "submitted_to_provider", notifyCustomer: true }, actor)).rejects.toThrow(/reference/);
 
     await changeOrderStatus(order.id, { to: "submitted_to_provider", notifyCustomer: true, externalReference: "RAI-12345", note: "Placed in partner dashboard" }, actor);
-    const [po] = await db.select().from(providerOrders).where(eq(providerOrders.orderId, order.id));
+    const [po] = await db.select().from(providerOrders).where(and(eq(providerOrders.orderId, order.id), eq(providerOrders.operation, "registered_agent")));
     expect(po.status).toBe("submitted");
     expect(po.externalReference).toBe("RAI-12345");
     expect(po.submittedByUserId).toBe(actor.userId);
@@ -95,7 +95,7 @@ describe("admin fulfillment workflow", () => {
     expect(sub.status).toBe("canceled");
     const [es] = await db.select().from(entityServices).where(eq(entityServices.orderId, order.id));
     expect(es.status).toBe("cancelled");
-    const [po] = await db.select().from(providerOrders).where(eq(providerOrders.orderId, order.id));
+    const [po] = await db.select().from(providerOrders).where(and(eq(providerOrders.orderId, order.id), eq(providerOrders.operation, "registered_agent")));
     expect(po.status).toBe("cancelled");
   });
 

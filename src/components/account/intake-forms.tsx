@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { submitIntakeAction } from "@/app/account/actions";
+import { saveIntakeDraftAction, submitIntakeAction } from "@/app/account/actions";
 import { Alert } from "@/components/ui/alert";
 import { CheckboxField, Fieldset, RadioGroup, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,19 @@ function ContactFields({ f, legend, description }: { f: ReturnType<typeof useFie
   );
 }
 
-function FormFrame({ state, action, children, submitLabel }: { state: FormState; action: (fd: FormData) => void; children: React.ReactNode; submitLabel: string }) {
+function FormFrame({
+  orderId,
+  state,
+  action,
+  children,
+  submitLabel,
+}: {
+  orderId: string;
+  state: FormState;
+  action: (fd: FormData) => void;
+  children: React.ReactNode;
+  submitLabel: string;
+}) {
   return (
     <form action={action} className="space-y-10" noValidate>
       {state.message ? (
@@ -68,10 +80,15 @@ function FormFrame({ state, action, children, submitLabel }: { state: FormState;
         </Alert>
       ) : null}
       {children}
-      <div className="flex flex-wrap items-center gap-4 border-t border-line pt-6">
-        <SubmitButton size="lg" pendingLabel="Saving…">
-          {submitLabel}
-        </SubmitButton>
+      <div className="space-y-3 border-t border-line pt-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SubmitButton size="lg" pendingLabel="Saving…" className="w-full sm:w-auto">
+            {submitLabel}
+          </SubmitButton>
+          <SubmitButton size="lg" variant="secondary" formAction={saveIntakeDraftAction.bind(null, orderId)} pendingLabel="Saving…" className="w-full sm:w-auto">
+            Save and finish later
+          </SubmitButton>
+        </div>
         <p className="text-sm text-muted">You can edit this until your order is submitted for processing.</p>
       </div>
     </form>
@@ -87,7 +104,7 @@ export function RegisteredAgentIntakeForm({ orderId, defaults }: { orderId: stri
   const [appointment, setAppointment] = useState(f.v("appointment.type"));
 
   return (
-    <FormFrame state={state} action={action} submitLabel="Submit business information">
+    <FormFrame orderId={orderId} state={state} action={action} submitLabel="Submit business information">
       <Fieldset legend="Business details" description="Enter these exactly as they appear in state records.">
         <TextField name="entity.legalName" label="Legal business name" defaultValue={f.v("entity.legalName")} error={f.e("entity.legalName")} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -153,7 +170,7 @@ export function LlcFormationIntakeForm({ orderId, defaults, ownAgent }: { orderI
   const role = management === "manager_managed" ? "manager" : "member";
 
   return (
-    <FormFrame state={state} action={action} submitLabel="Submit LLC information">
+    <FormFrame orderId={orderId} state={state} action={action} submitLabel="Submit LLC information">
       <Fieldset legend="LLC name" description="The Texas Secretary of State decides whether a name is available. Give us a backup in case it isn't.">
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField className="sm:col-span-2" name="company.name" label="Name (without the ending)" hint="e.g. “Lone Star Bakery”" defaultValue={f.v("company.name")} error={f.e("company.name")} />
@@ -276,7 +293,7 @@ export function BusinessAddressIntakeForm({ orderId, defaults }: { orderId: stri
   const [state, action] = useActionState<FormState, FormData>(submitIntakeAction.bind(null, orderId), {});
   const f = useField(state, defaults);
   return (
-    <FormFrame state={state} action={action} submitLabel="Submit information">
+    <FormFrame orderId={orderId} state={state} action={action} submitLabel="Submit information">
       <Fieldset legend="Business">
         <TextField name="businessName" label="Business name" defaultValue={f.v("businessName")} error={f.e("businessName")} />
       </Fieldset>

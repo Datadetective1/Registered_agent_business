@@ -16,8 +16,8 @@ import { getCustomerOrderDetail } from "@/server/customer";
 import { listCustomerDocuments } from "@/server/documents";
 import { INTAKE_EDITABLE } from "@/server/fulfillment";
 
-export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ orderId: string }>; searchParams: Promise<{ submitted?: string }> }) {
-  const [{ orderId }, { submitted }] = await Promise.all([params, searchParams]);
+export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ orderId: string }>; searchParams: Promise<{ submitted?: string; saved?: string }> }) {
+  const [{ orderId }, { submitted, saved }] = await Promise.all([params, searchParams]);
   const session = await requireCustomer(`/account/orders/${orderId}`);
   const detail = await getCustomerOrderDetail(session.customer.id, orderId);
   if (!detail || detail.order.status === "new") notFound();
@@ -38,13 +38,18 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           Thank you. Your order is in our processing queue, and we&apos;ll email you as it moves forward.
         </Alert>
       ) : null}
+      {saved ? (
+        <Alert tone="info" title="Progress saved" role="status">
+          Your answers are saved. Come back to this page anytime to finish your business information.
+        </Alert>
+      ) : null}
 
       <Card>
         <CardBody className="space-y-5 py-6">
           <OrderProgress status={order.status} />
           <p className="text-[15px] text-muted">{ORDER_STATUS[order.status].customerText}</p>
           {order.status === "payment_confirmed" && !order.intakeSubmittedAt ? (
-            <ButtonLink href={`/account/orders/${order.id}/onboarding`}>Complete business information</ButtonLink>
+            <ButtonLink href={`/account/orders/${order.id}/onboarding`}>{order.intakeDraft ? "Continue business information" : "Complete business information"}</ButtonLink>
           ) : null}
         </CardBody>
       </Card>

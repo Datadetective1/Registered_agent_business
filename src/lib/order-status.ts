@@ -15,8 +15,8 @@ type StatusMeta = {
 export const ORDER_STATUS: Record<OrderStatus, StatusMeta> = {
   new: { label: "New", customerLabel: "Awaiting payment", customerText: "Awaiting payment.", tone: "neutral" },
   payment_confirmed: {
-    label: "Payment Confirmed", customerLabel: "Awaiting your information",
-    customerText: "Payment received. Please complete your business information so we can begin.",
+    label: "Payment Confirmed", customerLabel: "Order received",
+    customerText: "Payment received. Next, tell us about your business so we can begin.",
     tone: "info",
   },
   information_needed: {
@@ -25,16 +25,16 @@ export const ORDER_STATUS: Record<OrderStatus, StatusMeta> = {
     tone: "warning",
   },
   ready_for_fulfillment: {
-    label: "Ready for Fulfillment", customerLabel: "In progress",
-    customerText: "We have everything we need and your order is in our processing queue.",
+    label: "Ready for Provider", customerLabel: "Information submitted",
+    customerText: "We have your information and your order is in our processing queue.",
     tone: "info",
   },
   submitted_to_provider: {
-    label: "Submitted", customerLabel: "Submitted",
-    customerText: "Your order has been submitted for processing.",
+    label: "Submitted to Provider", customerLabel: "Processing",
+    customerText: "We're processing your order. We'll email you when there's an update.",
     tone: "info",
   },
-  processing: { label: "Processing", customerLabel: "Processing", customerText: "Your order is being processed.", tone: "info" },
+  processing: { label: "Processing", customerLabel: "Processing", customerText: "We're processing your order. We'll email you when there's an update.", tone: "info" },
   completed: { label: "Completed", customerLabel: "Completed", customerText: "Your order is complete.", tone: "success" },
   cancelled: { label: "Cancelled", customerLabel: "Cancelled", customerText: "This order was cancelled.", tone: "danger" },
   refunded: { label: "Refunded", customerLabel: "Refunded", customerText: "This order was refunded.", tone: "neutral" },
@@ -65,17 +65,18 @@ export const OPEN_ORDER_STATUSES: OrderStatus[] = [
   "processing",
 ];
 
-/** Customer-facing progress steps (excludes terminal side-states). */
+/** Customer-facing progress milestones (excludes terminal side-states). */
 export const ORDER_PROGRESS: { status: OrderStatus; label: string }[] = [
-  { status: "payment_confirmed", label: "Paid" },
-  { status: "ready_for_fulfillment", label: "Information received" },
-  { status: "submitted_to_provider", label: "Submitted" },
+  { status: "payment_confirmed", label: "Order received" },
+  { status: "ready_for_fulfillment", label: "Information submitted" },
   { status: "processing", label: "Processing" },
-  { status: "completed", label: "Complete" },
+  { status: "completed", label: "Completed" },
 ];
 
+/** Index of the last milestone reached. */
 export function progressIndex(status: OrderStatus): number {
   if (status === "information_needed") return 0;
+  if (status === "submitted_to_provider") return 2;
   return ORDER_PROGRESS.findIndex((s) => s.status === status);
 }
 

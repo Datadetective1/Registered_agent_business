@@ -4,6 +4,7 @@ import { APPOINTMENT_TYPES } from "@/lib/intake";
 import { stateName } from "@/config/states";
 import type {
   BusinessAddressOrderInput,
+  ChangeOfAgentInput,
   CancelServiceInput,
   EinOrderInput,
   EntrySheet,
@@ -75,6 +76,32 @@ export const manualProvider: FulfillmentProvider = {
           fields: [
             { label: "Situation", value: APPOINTMENT_TYPES[i.appointment.type as keyof typeof APPOINTMENT_TYPES] ?? i.appointment.type },
             { label: "Current registered agent", value: i.appointment.currentAgentName ?? "" },
+          ],
+        },
+      ],
+    );
+  },
+
+  async createChangeOfAgentOrder(i: ChangeOfAgentInput) {
+    return manual(
+      "This business is switching from another registered agent, so the state must be notified. Once registered agent service is set up for the entity, arrange the change-of-registered-agent filing with the state: through the partner if it offers this, or by preparing the state's change-of-agent form (in Texas, Form 401). Record the partner reference or state filing number here, and mark it Completed when the state accepts the change. Confirm any state filing fee with the customer before filing.",
+      [
+        {
+          title: "Entity",
+          fields: [
+            { label: "Legal name", value: i.entity.legalName },
+            { label: "Entity type", value: ENTITY_TYPE_LABEL[i.entity.entityType as keyof typeof ENTITY_TYPE_LABEL] ?? i.entity.entityType },
+            { label: "State", value: stateName(i.entity.jurisdiction) },
+            { label: "SOS file number", value: i.entity.sosFileNumber ?? "" },
+          ],
+        },
+        { title: "Current registered agent", fields: [{ label: "Name (as given by customer)", value: i.currentAgentName ?? "Not provided" }] },
+        {
+          title: "Contact",
+          fields: [
+            { label: "Name", value: i.contact.name },
+            { label: "Email", value: i.contact.email },
+            { label: "Phone", value: i.contact.phone },
           ],
         },
       ],

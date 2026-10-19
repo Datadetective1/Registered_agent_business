@@ -25,7 +25,7 @@ export function OrderProgress({ status }: { status: OrderStatus }) {
   if (status === "cancelled" || status === "refunded" || status === "new") return null;
   const current = progressIndex(status);
   return (
-    <ol className="grid grid-cols-5 gap-2" aria-label="Order progress">
+    <ol className="grid grid-cols-4 gap-2" aria-label="Order progress">
       {ORDER_PROGRESS.map((step, i) => {
         // Steps up to the current milestone are done; the next one is in progress.
         const done = i <= current;

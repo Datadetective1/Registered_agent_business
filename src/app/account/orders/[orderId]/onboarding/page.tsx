@@ -28,13 +28,16 @@ export default async function OnboardingPage({ params }: { params: Promise<{ ord
   const { order, entity } = detail;
   const c = session.customer;
   const checkout = order.checkoutData as CheckoutData;
-  const fullName = `${c.firstName} ${c.lastName}`;
-  const contact = { name: fullName, email: c.email, phone: c.phone ?? "" };
+  // Prefer what was entered at checkout; fall back to the profile for older orders.
+  const cc = checkout.contact;
+  const fullName = cc ? `${cc.firstName} ${cc.lastName}` : `${c.firstName} ${c.lastName}`;
+  const contact = { name: fullName, email: cc?.email ?? c.email, phone: cc?.phone ?? c.phone ?? "" };
+  const usAddress = cc && cc.country === "United States" ? { line1: cc.line1, line2: cc.line2, city: cc.city, state: cc.state, postalCode: cc.postalCode } : undefined;
 
   const header = (
     <PageHeader
       title="Tell us about your business"
-      description={`Order ${orderNumberLabel(order.number)} · ${ORDER_TYPE_LABEL[order.type]}. Takes about five minutes.`}
+      description={`Order ${orderNumberLabel(order.number)} · ${ORDER_TYPE_LABEL[order.type]}. Takes about five minutes. We've filled in what you gave us at checkout.`}
     />
   );
 
@@ -54,22 +57,27 @@ export default async function OnboardingPage({ params }: { params: Promise<{ ord
   }
 
   let defaults: Record<string, string>;
-  if (order.intake) {
+  if (order.intakeDraft) {
+    defaults = order.intakeDraft;
+  } else if (order.intake) {
     defaults = flattenToFormValues(order.intake);
     if (order.type === "registered_agent" && !defaults["mailingAddress.line1"]) defaults.mailingSameAsPrincipal = "on";
   } else if (order.type === "registered_agent") {
     defaults = flattenToFormValues({
-      entity: { legalName: entity?.legalName, entityType: entity?.entityType, jurisdiction: entity?.jurisdiction },
+      entity: { legalName: entity?.legalName, entityType: entity?.entityType, jurisdiction: entity?.jurisdiction, formationDate: entity?.formationDate ?? undefined },
+      principalAddress: usAddress,
       mailingSameAsPrincipal: true,
       contact,
+      appointment: checkout.situation === "forming" ? { type: "not_yet_formed" } : undefined,
     });
   } else if (order.type === "llc_formation") {
     const n = splitDesignator(checkout.llcName ?? entity?.legalName ?? "");
+    const personAddress = usAddress ?? { state: "TX" };
     defaults = flattenToFormValues({
       company: { name: n.name, designator: n.designator },
       management: "member_managed",
-      governingPersons: [{ name: fullName, address: { state: "TX" } }],
-      organizer: { name: fullName, address: { state: "TX" } },
+      governingPersons: [{ name: fullName, address: personAddress }],
+      organizer: { name: fullName, address: personAddress },
       businessAddress: { state: "TX" },
       purpose: { type: "general" },
       effective: { type: "upon_filing" },

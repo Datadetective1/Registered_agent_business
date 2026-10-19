@@ -5,7 +5,7 @@ import { auditEvents, entities, entityServices, notifications, orders, payments,
 import { parseForm } from "@/lib/forms";
 import { registeredAgentIntakeSchema } from "@/lib/intake";
 import { SYSTEM } from "@/server/audit";
-import { confirmOrderPayment, IntakeError, submitOrderIntake } from "@/server/fulfillment";
+import { confirmOrderPayment, IntakeError, saveIntakeDraft, submitOrderIntake } from "@/server/fulfillment";
 import { createPendingOrder, OrderError, quoteOrder } from "@/server/orders";
 import { resetDb } from "../helpers/db";
 import { makeCustomer, raIntakeFormData, seedCatalog } from "../helpers/fixtures";
@@ -158,15 +158,58 @@ describe("onboarding intake", () => {
     expect(entity.sosFileNumber).toBe("0801234567");
     expect(entity.principalAddressId).toBeTruthy();
 
-    const [po] = await db.select().from(providerOrders).where(eq(providerOrders.orderId, order.id));
+    const [po] = await db
+      .select()
+      .from(providerOrders)
+      .where(and(eq(providerOrders.orderId, order.id), eq(providerOrders.operation, "registered_agent")));
     expect(po.provider).toBe("manual");
     expect(po.status).toBe("pending_manual");
     const sheet = (po.payload as { sheet: Array<{ title: string; fields: Array<{ label: string; value: string }> }> }).sheet;
     expect(sheet.flatMap((s) => s.fields).find((f) => f.label === "Legal name")?.value).toBe("Lone Star Widgets, LLC");
 
-    // Resubmitting refreshes the same provider order rather than creating another.
+    // Resubmitting refreshes the same provider orders rather than creating more.
     await submitOrderIntake(customer, order.id, { type: "registered_agent", data: parsed.data }, { type: "customer", userId: customer.userId });
-    expect(await db.select().from(providerOrders).where(eq(providerOrders.orderId, order.id))).toHaveLength(1);
+    const all = await db.select().from(providerOrders).where(eq(providerOrders.orderId, order.id));
+    expect(all.map((p) => p.operation).sort()).toEqual(["change_of_agent", "registered_agent"]);
+  });
+
+  it("tracks a change-of-agent filing only while the customer says they're switching", async () => {
+    const { customer } = await makeCustomer();
+    const order = await newRaOrder(customer.id);
+    await confirmOrderPayment({ orderId: order.id, gateway: "simulated", amountTotalCents: 9900, currency: "usd" }, SYSTEM);
+    const actor = { type: "customer" as const, userId: customer.userId };
+    const switching = parseForm(registeredAgentIntakeSchema, raIntakeFormData());
+    const notSwitching = parseForm(registeredAgentIntakeSchema, raIntakeFormData({ "appointment.type": "newly_formed", "appointment.currentAgentName": "" }));
+    if (!switching.ok || !notSwitching.ok) throw new Error("bad fixture");
+
+    await submitOrderIntake(customer, order.id, { type: "registered_agent", data: switching.data }, actor);
+    const change = async () =>
+      (await db.select().from(providerOrders).where(and(eq(providerOrders.orderId, order.id), eq(providerOrders.operation, "change_of_agent"))))[0];
+    const created = await change();
+    expect(created.status).toBe("pending_manual");
+    const sheet = (created.payload as { sheet: Array<{ fields: Array<{ label: string; value: string }> }> }).sheet;
+    expect(sheet.flatMap((s) => s.fields).some((f) => f.value === "Old Agent Co")).toBe(true);
+
+    await submitOrderIntake(customer, order.id, { type: "registered_agent", data: notSwitching.data }, actor);
+    expect((await change()).status).toBe("cancelled");
+  });
+
+  it("saves an unvalidated draft for the order's owner only, and clears it on submit", async () => {
+    const a = await makeCustomer();
+    const b = await makeCustomer();
+    const order = await newRaOrder(a.customer.id);
+    await confirmOrderPayment({ orderId: order.id, gateway: "simulated", amountTotalCents: 9900, currency: "usd" }, SYSTEM);
+
+    await saveIntakeDraft(a.customer.id, order.id, { "entity.legalName": "Half Done LLC", "bad key!": "x" });
+    let [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o.intakeDraft).toEqual({ "entity.legalName": "Half Done LLC" });
+    await expect(saveIntakeDraft(b.customer.id, order.id, { x: "y" })).rejects.toBeInstanceOf(IntakeError);
+
+    const parsed = parseForm(registeredAgentIntakeSchema, raIntakeFormData());
+    if (!parsed.ok) throw new Error("bad fixture");
+    await submitOrderIntake(a.customer, order.id, { type: "registered_agent", data: parsed.data }, SYSTEM);
+    [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o.intakeDraft).toBeNull();
   });
 
   it("refuses intake from a different customer and before payment", async () => {

@@ -2,7 +2,7 @@ import "server-only";
 import type { Customer, Order } from "@/db/schema";
 import { fullLlcName, type BusinessAddressIntake, type LlcFormationIntake, type RegisteredAgentIntake } from "@/lib/intake";
 import type { CheckoutData } from "@/server/orders";
-import type { BusinessAddressOrderInput, Contact, FormationOrderInput, RegisteredAgentOrderInput } from "./types";
+import type { BusinessAddressOrderInput, ChangeOfAgentInput, Contact, FormationOrderInput, RegisteredAgentOrderInput } from "./types";
 
 /** Build provider-neutral inputs from our own order data. */
 const customerContact = (c: Customer): Contact => ({
@@ -25,6 +25,21 @@ export function registeredAgentInput(order: Order, customer: Customer, intake: R
     },
     contact: intake.contact,
     appointment: intake.appointment,
+    customer: customerContact(customer),
+  };
+}
+
+export function changeOfAgentInput(order: Order, customer: Customer, intake: RegisteredAgentIntake): ChangeOfAgentInput {
+  return {
+    orderNumber: order.number,
+    entity: {
+      legalName: intake.entity.legalName,
+      entityType: intake.entity.entityType,
+      jurisdiction: intake.entity.jurisdiction,
+      sosFileNumber: intake.entity.sosFileNumber,
+    },
+    currentAgentName: intake.appointment.currentAgentName,
+    contact: intake.contact,
     customer: customerContact(customer),
   };
 }

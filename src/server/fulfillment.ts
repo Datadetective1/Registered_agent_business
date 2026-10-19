@@ -22,7 +22,7 @@ import { notifyAdmins, sendEmail } from "./notifications/send";
 import { orderProductName, type CheckoutData } from "./orders";
 import type { PaymentConfirmation } from "./payments/types";
 import { getProvider } from "./providers";
-import { businessAddressInput, formationInput, registeredAgentInput } from "./providers/payloads";
+import { businessAddressInput, changeOfAgentInput, formationInput, registeredAgentInput } from "./providers/payloads";
 import type { ProviderOperation, ProviderSubmission } from "./providers/types";
 
 /* -------------------------------------------------------------------------- */
@@ -246,6 +246,40 @@ const OPERATION: Record<Order["type"], ProviderOperation> = {
   business_address: "business_address",
 };
 
+/** One open provider order per operation: refresh it on resubmission, otherwise create it. Returns the open one, if any. */
+async function upsertProviderOrder(
+  tx: Tx,
+  p: { orderId: string; entityId: string; providerId: string; operation: ProviderOperation; submission: ProviderSubmission; payload: Record<string, unknown> },
+) {
+  const [open] = await tx
+    .select()
+    .from(providerOrders)
+    .where(
+      and(
+        eq(providerOrders.orderId, p.orderId),
+        eq(providerOrders.operation, p.operation),
+        inArray(providerOrders.status, ["pending_manual", "submitted", "processing"]),
+      ),
+    )
+    .limit(1);
+  if (open) {
+    await tx.update(providerOrders).set({ payload: p.payload, lastSyncedAt: new Date() }).where(eq(providerOrders.id, open.id));
+  } else {
+    await tx.insert(providerOrders).values({
+      orderId: p.orderId,
+      entityId: p.entityId,
+      provider: p.providerId,
+      operation: p.operation,
+      status: p.submission.status,
+      externalReference: p.submission.externalReference,
+      payload: p.payload,
+      response: p.submission.raw ?? {},
+      submittedAt: p.submission.status === "submitted" ? new Date() : null,
+    });
+  }
+  return open;
+}
+
 async function saveAddress(tx: Tx, customerId: string, existingId: string | null, a: AddressInput): Promise<string> {
   const values = { line1: a.line1, line2: a.line2 ?? null, city: a.city, state: a.state, postalCode: a.postalCode };
   if (existingId) {
@@ -267,6 +301,23 @@ export type IntakeData =
 
 /** Statuses in which the customer may (re)submit onboarding information (locked once submitted to the provider). */
 export const INTAKE_EDITABLE: Order["status"][] = ["payment_confirmed", "information_needed", "ready_for_fulfillment"];
+
+/**
+ * "Save and finish later": keep unvalidated onboarding answers (flat form values) on
+ * the order. They're only ever shown back to the same customer in the form.
+ */
+export async function saveIntakeDraft(customerId: string, orderId: string, values: Record<string, string>) {
+  const draft: Record<string, string> = {};
+  for (const [k, v] of Object.entries(values).slice(0, 200)) {
+    if (k.length <= 100 && /^[a-zA-Z0-9_.]+$/.test(k)) draft[k] = v.slice(0, 2000);
+  }
+  const [row] = await db
+    .update(orders)
+    .set({ intakeDraft: draft })
+    .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId), inArray(orders.status, INTAKE_EDITABLE)))
+    .returning({ id: orders.id });
+  if (!row) throw new IntakeError("This order can no longer be edited.");
+}
 
 /**
  * Save onboarding answers, update the entity, hand the order to the fulfillment
@@ -341,39 +392,34 @@ export async function submitOrderIntake(customer: Customer, orderId: string, int
       payload = { input, sheet: submission.sheet ?? [], instructions: submission.instructions ?? "" };
     }
 
-    // One open provider order per operation: refresh it on resubmission, otherwise create it.
-    const operation = OPERATION[order.type];
-    const [open] = await tx
-      .select()
-      .from(providerOrders)
-      .where(
-        and(
-          eq(providerOrders.orderId, order.id),
-          eq(providerOrders.operation, operation),
-          inArray(providerOrders.status, ["pending_manual", "submitted", "processing"]),
-        ),
-      )
-      .limit(1);
-    if (open) {
-      await tx.update(providerOrders).set({ payload, lastSyncedAt: new Date() }).where(eq(providerOrders.id, open.id));
-    } else {
-      await tx.insert(providerOrders).values({
-        orderId: order.id,
-        entityId: entity.id,
-        provider: provider.id,
-        operation,
-        status: submission.status,
-        externalReference: submission.externalReference,
-        payload,
-        response: submission.raw ?? {},
-        submittedAt: submission.status === "submitted" ? new Date() : null,
-      });
+    const open = await upsertProviderOrder(tx, { orderId: order.id, entityId: entity.id, providerId: provider.id, operation: OPERATION[order.type], submission, payload });
+
+    // Switching from another registered agent needs a change-of-agent filing: track it separately.
+    if (intake.type === "registered_agent") {
+      if (intake.data.appointment.type === "change_from_existing") {
+        const input = changeOfAgentInput(order, customer, intake.data);
+        const change = await provider.createChangeOfAgentOrder(input);
+        await upsertProviderOrder(tx, {
+          orderId: order.id,
+          entityId: entity.id,
+          providerId: provider.id,
+          operation: "change_of_agent",
+          submission: change,
+          payload: { input, sheet: change.sheet ?? [], instructions: change.instructions ?? "" },
+        });
+      } else {
+        // The customer changed their answer: drop a change-of-agent task nobody has started.
+        await tx
+          .update(providerOrders)
+          .set({ status: "cancelled" })
+          .where(and(eq(providerOrders.orderId, order.id), eq(providerOrders.operation, "change_of_agent"), eq(providerOrders.status, "pending_manual")));
+      }
     }
 
     const nextStatus = open && open.status !== "pending_manual" ? order.status : "ready_for_fulfillment";
     const [updated] = await tx
       .update(orders)
-      .set({ intake: intake.data as unknown as Record<string, unknown>, intakeSubmittedAt: new Date(), status: nextStatus })
+      .set({ intake: intake.data as unknown as Record<string, unknown>, intakeDraft: null, intakeSubmittedAt: new Date(), status: nextStatus })
       .where(eq(orders.id, order.id))
       .returning();
     await audit(
@@ -392,6 +438,7 @@ export async function submitOrderIntake(customer: Customer, orderId: string, int
   });
 
   if (result.firstSubmission) {
+    await track("onboarding_completed", {}, { orderType: result.order.type });
     await sendEmail({
       template: "onboarding_received",
       to: customer.email,

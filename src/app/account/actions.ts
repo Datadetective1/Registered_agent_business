@@ -12,7 +12,7 @@ import { PASSWORD_MAX, PASSWORD_MIN } from "@/server/auth/password";
 import { CustomerActionError, getCustomerEntity, respondToInformationRequest, setSubscriptionAutoRenew, updateCustomerProfile } from "@/server/customer";
 import { createDocument, UploadError } from "@/server/documents";
 import { appUrl } from "@/server/env";
-import { IntakeError, submitOrderIntake, type IntakeData } from "@/server/fulfillment";
+import { IntakeError, saveIntakeDraft, submitOrderIntake, type IntakeData } from "@/server/fulfillment";
 import { getCustomerOrder, type CheckoutData } from "@/server/orders";
 import { getGateway } from "@/server/payments/gateway";
 import { rateLimit, tooManyAttemptsMessage } from "@/server/rate-limit";
@@ -55,6 +55,18 @@ export async function submitIntakeAction(orderId: string, _prev: FormState, form
     throw err;
   }
   redirect(`/account/orders/${order.id}?submitted=1`);
+}
+
+/** "Save and finish later" on the onboarding form: no validation, just keep what's typed. */
+export async function saveIntakeDraftAction(orderId: string, formData: FormData): Promise<void> {
+  const session = await customerOrNull();
+  if (!session) redirect(`/sign-in?returnTo=${encodeURIComponent(`/account/orders/${orderId}/onboarding`)}`);
+  try {
+    await saveIntakeDraft(session.customer.id, orderId, echoValues(formData));
+  } catch (err) {
+    if (!(err instanceof IntakeError)) throw err;
+  }
+  redirect(`/account/orders/${orderId}?saved=1`);
 }
 
 /* --------------------------- information requests -------------------------- */

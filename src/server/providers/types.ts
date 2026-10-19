@@ -18,7 +18,7 @@ import type { AddressInput } from "@/lib/intake";
 
 export type ProviderId = "manual";
 export type ProviderOrderStatus = "pending_manual" | "submitted" | "processing" | "completed" | "failed" | "cancelled";
-export type ProviderOperation = "registered_agent" | "formation" | "business_address" | "ein" | "update_entity" | "cancel_service";
+export type ProviderOperation = "registered_agent" | "change_of_agent" | "formation" | "business_address" | "ein" | "update_entity" | "cancel_service";
 
 export type Person = { name: string; address: AddressInput };
 export type Contact = { name: string; email: string; phone: string };
@@ -36,6 +36,18 @@ export type RegisteredAgentOrderInput = {
   };
   contact: Contact;
   appointment: { type: string; currentAgentName?: string };
+  customer: Contact;
+};
+
+/**
+ * A business switching to us from another registered agent: the state must be told
+ * (a change-of-agent filing). Tracked as its own provider order so it can't be missed.
+ */
+export type ChangeOfAgentInput = {
+  orderNumber: number;
+  entity: { legalName: string; entityType: string; jurisdiction: string; sosFileNumber?: string };
+  currentAgentName?: string;
+  contact: Contact;
   customer: Contact;
 };
 
@@ -91,6 +103,7 @@ export interface FulfillmentProvider {
   /** False when a human must act (ManualProvider). */
   readonly isAutomated: boolean;
   createRegisteredAgentOrder(input: RegisteredAgentOrderInput): Promise<ProviderSubmission>;
+  createChangeOfAgentOrder(input: ChangeOfAgentInput): Promise<ProviderSubmission>;
   createFormationOrder(input: FormationOrderInput): Promise<ProviderSubmission>;
   createBusinessAddressOrder(input: BusinessAddressOrderInput): Promise<ProviderSubmission>;
   createEINOrder(input: EinOrderInput): Promise<ProviderSubmission>;
