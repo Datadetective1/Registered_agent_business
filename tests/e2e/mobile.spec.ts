@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { buyRegisteredAgent } from "./helpers";
 
 /**
  * Mobile layout check (iPhone-sized viewport): key pages render without horizontal
@@ -10,14 +11,15 @@ test.use({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile
 const PAGES = [
   "/",
   "/registered-agent",
-  "/start-an-llc",
+  "/start-an-llc-texas",
+  "/texas-llc",
   "/business-address",
   "/pricing",
   "/how-it-works",
   "/faq",
   "/about",
   "/contact",
-  "/registered-agent/texas",
+  "/texas-registered-agent",
   "/legal/terms",
   "/sign-in",
   "/create-account",
@@ -42,19 +44,12 @@ test("mobile menu opens and navigates", async ({ page }) => {
   await expect(page).toHaveURL(/\/pricing/);
 });
 
-test("customer account and onboarding work on mobile", async ({ page }) => {
+test("checkout steps, account and onboarding work on mobile", async ({ page }) => {
   const stamp = Date.now();
   await page.goto("/order/registered-agent");
-  await page.locator("#co-signup-first").fill("Mo");
-  await page.locator("#co-signup-last").fill("Bile");
-  await page.locator("#co-signup-email").fill(`e2e-mobile-${stamp}@example.com`);
-  await page.locator("#co-signup-password").fill("mobile-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await page.getByLabel("Legal business name").fill(`Mobile Co ${stamp} LLC`);
-  await page.getByLabel(/I agree to the/).check();
-  await page.getByRole("button", { name: "Continue to payment" }).click();
-  await page.getByRole("button", { name: "Pay (simulated)" }).click();
-  await page.getByRole("link", { name: "Complete business information" }).click();
+  await page.screenshot({ path: "tests/e2e/screenshots/mobile-checkout-company.png", fullPage: true });
+  await buyRegisteredAgent(page, { first: "Mo", last: "Bile", email: `e2e-mobile-${stamp}@example.com`, password: "mobile-password-123" }, `Mobile Co ${stamp} LLC`);
+  await page.getByRole("link", { name: "Continue to business details" }).click();
   await expect(page.getByRole("heading", { name: "Tell us about your business" })).toBeVisible();
   for (const p of ["onboarding", "account"]) {
     if (p === "account") await page.goto("/account");

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { buyRegisteredAgent } from "./helpers";
 
 /**
  * Authorization boundaries through the real HTTP stack: customers can't see each
@@ -12,18 +13,7 @@ const bob = { email: `e2e-bob-${stamp}@example.com`, password: "bob-password-123
 let aliceOrder = "";
 
 async function signUpAndBuy(page: Page, who: typeof alice, business: string) {
-  await page.goto("/create-account?returnTo=/order/registered-agent");
-  await page.getByLabel("First name").fill("Test");
-  await page.getByLabel("Last name").fill("User");
-  await page.getByLabel("Email").fill(who.email);
-  await page.getByLabel("Password").fill(who.password);
-  await page.getByRole("button", { name: "Create account" }).click();
-  await page.getByLabel("Legal business name").fill(business);
-  await page.getByLabel(/I agree to the/).check();
-  await page.getByRole("button", { name: "Continue to payment" }).click();
-  await page.getByRole("button", { name: "Pay (simulated)" }).click();
-  await expect(page.getByRole("heading", { name: /Payment received/ })).toBeVisible();
-  return new URL(page.url()).pathname.split("/")[2];
+  return buyRegisteredAgent(page, { first: "Test", last: "User", ...who }, business);
 }
 
 test("anonymous visitors are redirected away from private areas", async ({ page, request }) => {
