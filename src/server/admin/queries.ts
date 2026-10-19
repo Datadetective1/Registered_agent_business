@@ -75,8 +75,40 @@ export async function dashboardData() {
       .where(inArray(subscriptions.status, ["past_due", "unpaid"]))
       .limit(20),
   ]);
+  const since30 = new Date(Date.now() - 30 * 86_400_000);
+  const [[renewalCount], [failedPaymentCount], [completedRecent]] = await Promise.all([
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(subscriptions)
+      .where(and(inArray(subscriptions.status, ["active", "trialing"]), eq(subscriptions.cancelAtPeriodEnd, false), lte(subscriptions.currentPeriodEnd, in30))),
+    db.select({ n: sql<number>`count(*)::int` }).from(payments).where(and(eq(payments.status, "failed"), gte(payments.createdAt, since30))),
+    db.select({ n: sql<number>`count(*)::int` }).from(orders).where(and(eq(orders.status, "completed"), gte(orders.completedAt, since30))),
+  ]);
   const byStatus = Object.fromEntries(counts.map((c) => [c.status, c.count])) as Partial<Record<OrderStatus, number>>;
-  return { byStatus, ready, responded, awaitingInfo, renewals, support, pastDue };
+  const changeOfAgent = await changeOfAgentOrderIds(ready.map((r) => r.order.id));
+  return {
+    byStatus,
+    ready,
+    responded,
+    awaitingInfo,
+    renewals,
+    support,
+    pastDue,
+    changeOfAgent,
+    upcomingRenewals: renewalCount?.n ?? 0,
+    failedPayments: (failedPaymentCount?.n ?? 0) + pastDue.length,
+    completedLast30: completedRecent?.n ?? 0,
+  };
+}
+
+/** Which of these orders also need a change-of-registered-agent filing (not cancelled). */
+export async function changeOfAgentOrderIds(orderIds: string[]): Promise<Set<string>> {
+  if (!orderIds.length) return new Set();
+  const rows = await db
+    .select({ orderId: providerOrders.orderId })
+    .from(providerOrders)
+    .where(and(inArray(providerOrders.orderId, orderIds), eq(providerOrders.operation, "change_of_agent"), sql`${providerOrders.status} <> 'cancelled'`));
+  return new Set(rows.map((r) => r.orderId));
 }
 
 /* ---------------------------------- orders --------------------------------- */

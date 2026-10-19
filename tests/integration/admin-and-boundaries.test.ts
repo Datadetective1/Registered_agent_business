@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { auditEvents, entities, entityServices, informationRequests, notifications, orders, providerOrders, subscriptions } from "@/db/schema";
+import { auditEvents, entities, entityServices, informationRequests, notifications, orders, payments, providerOrders, subscriptions } from "@/db/schema";
 import { parseForm } from "@/lib/forms";
 import { registeredAgentIntakeSchema } from "@/lib/intake";
-import { AdminActionError, changeOrderStatus, uploadAdminDocument } from "@/server/admin/operations";
+import { AdminActionError, changeOrderStatus, refundOrder, updateProviderOrder, uploadAdminDocument } from "@/server/admin/operations";
 import { SYSTEM } from "@/server/audit";
 import { CustomerActionError, getCustomerEntity, getCustomerOrderDetail, respondToInformationRequest, setSubscriptionAutoRenew } from "@/server/customer";
 import { canAccessDocument, listCustomerDocuments } from "@/server/documents";
@@ -15,7 +15,7 @@ import { makeAdmin, makeCustomer, raIntakeFormData, seedCatalog } from "../helpe
 
 const PDF = new File([Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF")], "certificate.pdf", { type: "application/pdf" });
 
-async function readyRaOrder() {
+async function readyRaOrder(intake: Record<string, string> = { "appointment.type": "newly_formed", "appointment.currentAgentName": "" }) {
   const { customer } = await makeCustomer();
   const quote = await quoteOrder("registered_agent");
   const order = await createPendingOrder({
@@ -27,7 +27,7 @@ async function readyRaOrder() {
     termsVersion: "t",
   });
   await confirmOrderPayment({ orderId: order.id, gateway: "simulated", amountTotalCents: 9900, currency: "usd" }, SYSTEM);
-  const parsed = parseForm(registeredAgentIntakeSchema, raIntakeFormData({ "entity.legalName": "Boundary Co LLC" }));
+  const parsed = parseForm(registeredAgentIntakeSchema, raIntakeFormData({ "entity.legalName": "Boundary Co LLC", ...intake }));
   if (!parsed.ok) throw new Error("fixture");
   const ready = await submitOrderIntake(customer, order.id, { type: "registered_agent", data: parsed.data }, SYSTEM);
   return { customer, order: ready };
@@ -68,6 +68,40 @@ describe("admin fulfillment workflow", () => {
     expect(templates).toEqual(expect.arrayContaining(["provider_submitted", "order_completed", "service_activated"]));
     const statusEvents = await db.select().from(auditEvents).where(eq(auditEvents.action, "order.status_changed"));
     expect(statusEvents).toHaveLength(3);
+  });
+
+  it("keeps a change-of-agent filing separate and blocks completion until it's done", async () => {
+    const { actor } = await makeAdmin();
+    const { order } = await readyRaOrder({});
+    const agent = { agentName: "Partner Registered Agent, Inc.", agentAddress: "700 Lavaca St Ste 1401, Austin, TX 78701" };
+    await changeOrderStatus(order.id, { to: "submitted_to_provider", notifyCustomer: false, externalReference: "RAI-1" }, actor);
+    const rows = async () => Object.fromEntries((await db.select().from(providerOrders).where(eq(providerOrders.orderId, order.id))).map((p) => [p.operation, p]));
+    expect((await rows()).change_of_agent.status).toBe("pending_manual"); // not swept along with the main order
+
+    await expect(changeOrderStatus(order.id, { to: "completed", notifyCustomer: false, ...agent }, actor)).rejects.toThrow(/change-of-agent/);
+    const change = (await rows()).change_of_agent;
+    await expect(updateProviderOrder(change.id, { status: "submitted" }, actor)).rejects.toThrow(/reference/);
+    await updateProviderOrder(change.id, { status: "submitted", externalReference: "TX-401-1" }, actor);
+    await expect(updateProviderOrder(change.id, { status: "pending_manual" }, actor)).rejects.toBeInstanceOf(AdminActionError);
+    await updateProviderOrder(change.id, { status: "completed" }, actor);
+    expect((await rows()).change_of_agent).toMatchObject({ status: "completed", externalReference: "TX-401-1" });
+
+    await changeOrderStatus(order.id, { to: "completed", notifyCustomer: false, ...agent }, actor);
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o.status).toBe("completed");
+  });
+
+  it("refunds a paid order through its gateway and cancels its services", async () => {
+    const { actor } = await makeAdmin();
+    const { order } = await readyRaOrder();
+    await refundOrder(order.id, { note: "Customer changed their mind" }, actor);
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(o.status).toBe("refunded");
+    const [p] = await db.select().from(payments).where(eq(payments.orderId, order.id));
+    expect(p).toMatchObject({ status: "refunded", amountRefundedCents: 9900 });
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.orderId, order.id));
+    expect(sub.status).toBe("canceled");
+    await expect(refundOrder(order.id, {}, actor)).rejects.toBeInstanceOf(AdminActionError);
   });
 
   it("information requests notify the customer and accept a response with files", async () => {

@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { STATE_CODES } from "@/config/states";
-import { documentType, entityStatus, orderStatus } from "@/db/schema";
+import { documentType, entityStatus, orderStatus, providerOrderStatus } from "@/db/schema";
 import { formDataToObject, zodErrors, type FormState } from "@/lib/forms";
 import { parseDollarsToCents } from "@/lib/money";
 import {
@@ -12,7 +13,9 @@ import {
   AdminActionError,
   changeOrderStatus,
   closeInformationRequest,
+  refundOrder,
   setDocumentState,
+  updateProviderOrder,
   setSupportStatus,
   updateEntityRecord,
   uploadAdminDocument,
@@ -61,8 +64,35 @@ export async function changeOrderStatusAction(orderId: string, _prev: FormState,
   } catch (err) {
     return failure(err);
   }
+  // The quick-action form for this step disappears once the status moves on, so confirm on the page.
+  redirect(`/admin/orders/${orderId}?updated=1`);
+}
+
+export async function refundOrderAction(orderId: string, _prev: FormState, fd: FormData): Promise<FormState> {
+  const actor = await admin();
+  if (!actor) return DENIED;
+  if (!bool(fd.get("confirm"))) return { errors: { confirm: "Tick the box to confirm the refund" } };
+  try {
+    await refundOrder(orderId, { note: str(fd, "note") }, actor);
+  } catch (err) {
+    return failure(err);
+  }
+  redirect(`/admin/orders/${orderId}?updated=refunded`);
+}
+
+export async function updateProviderOrderAction(providerOrderId: string, orderId: string, _prev: FormState, fd: FormData): Promise<FormState> {
+  const actor = await admin();
+  if (!actor) return DENIED;
+  const raw = str(fd, "status");
+  const status = raw ? z.enum(providerOrderStatus.enumValues).safeParse(raw) : null;
+  if (status && !status.success) return { errors: { status: "Choose a status" } };
+  try {
+    await updateProviderOrder(providerOrderId, { externalReference: str(fd, "externalReference"), status: status?.data, note: str(fd, "note") }, actor);
+  } catch (err) {
+    return failure(err);
+  }
   revalidatePath(`/admin/orders/${orderId}`);
-  return { ok: true, message: "Order updated." };
+  return { ok: true, message: "Saved." };
 }
 
 export async function addNoteAction(target: { orderId?: string; customerId?: string; entityId?: string; supportRequestId?: string }, _prev: FormState, fd: FormData): Promise<FormState> {

@@ -5,17 +5,19 @@ import {
   activateServiceAction,
   addNoteAction,
   changeOrderStatusAction,
+  refundOrderAction,
   saveServiceAction,
   saveSiteSettingsAction,
   updateEntityAction,
+  updateProviderOrderAction,
   uploadAdminDocumentAction,
 } from "@/app/admin/actions";
 import { Alert } from "@/components/ui/alert";
 import { CheckboxField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { FormState } from "@/lib/forms";
 import { DOCUMENT_TYPE_LABEL, ENTITY_STATUS_LABEL } from "@/lib/labels";
-import { ORDER_STATUS } from "@/lib/order-status";
 import type { OrderStatus } from "@/db/schema";
 
 function Message({ state }: { state: FormState }) {
@@ -31,58 +33,192 @@ const ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.heic";
 
 /* ---------------------------------- orders --------------------------------- */
 
-export function StatusChangeForm({
+type QuickAction = "information_needed" | "ready_for_fulfillment" | "submitted_to_provider" | "processing" | "completed" | "cancelled";
+
+const QUICK_LABEL: Record<QuickAction, string> = {
+  information_needed: "Request information",
+  ready_for_fulfillment: "Mark ready for provider",
+  submitted_to_provider: "Mark submitted to provider",
+  processing: "Mark processing",
+  completed: "Mark completed",
+  cancelled: "Cancel order",
+};
+
+/**
+ * One explicit button per next step (no status dropdown). Steps that need input open
+ * a short form; destructive ones ask for confirmation.
+ */
+export function OrderQuickActions({
   orderId,
   allowed,
   needsAgentDetails,
-  hasPendingProviderOrder,
+  hasIntake,
+  refund,
 }: {
   orderId: string;
   allowed: OrderStatus[];
   needsAgentDetails: boolean;
-  hasPendingProviderOrder: boolean;
+  hasIntake: boolean;
+  /** null when the order can't be refunded from here; otherwise a note about how. */
+  refund: { available: boolean; note: string } | null;
 }) {
-  const [state, action] = useActionState<FormState, FormData>(changeOrderStatusAction.bind(null, orderId), {});
-  const [to, setTo] = useState<string>(allowed.includes("submitted_to_provider") && hasPendingProviderOrder ? "submitted_to_provider" : (allowed[0] ?? ""));
-  if (!allowed.length) return <p className="text-sm text-muted">No further status changes are available.</p>;
-  const notifyDefault = to === "submitted_to_provider" || to === "completed";
+  const [open, setOpen] = useState<QuickAction | "refund" | null>(null);
+  const actions = (Object.keys(QUICK_LABEL) as QuickAction[]).filter((a) => allowed.includes(a));
+  const primary = actions.filter((a) => a !== "cancelled");
+  if (!actions.length && !refund) return <p className="text-sm text-muted">No further steps for this order.</p>;
   return (
-    <form action={action} className="space-y-4">
-      <Message state={state} />
-      <SelectField
-        name="to"
-        label="Move order to"
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        options={allowed.map((s) => ({ value: s, label: ORDER_STATUS[s].label }))}
-        error={state.errors?.to}
-      />
-      {to === "submitted_to_provider" ? (
-        <TextField name="externalReference" label="Provider order / reference #" hint="From the wholesale partner's dashboard after you place the order." required />
-      ) : null}
-      {to === "information_needed" ? (
-        <TextAreaField name="infoRequestMessage" label="What do you need from the customer?" rows={4} hint="Sent to the customer by email and shown in their account. They can reply and upload files." />
-      ) : null}
-      {to === "completed" && needsAgentDetails ? (
-        <div className="space-y-3 rounded-md border border-line bg-paper p-3">
-          <p className="text-sm font-medium">Registered agent details (from the provider)</p>
-          <TextField name="agentName" label="Registered agent name" />
-          <TextAreaField name="agentAddress" label="Registered office address" rows={2} />
+    <div className="space-y-3">
+      {primary.map((a, i) => (
+        <QuickActionForm key={a} orderId={orderId} action={a} first={i === 0} open={open === a} onToggle={() => setOpen(open === a ? null : a)} needsAgentDetails={needsAgentDetails} hasIntake={hasIntake} />
+      ))}
+      {actions.includes("cancelled") || refund ? (
+        <div className={primary.length ? "space-y-3 border-t border-line pt-3" : "space-y-3"}>
+          {actions.includes("cancelled") ? (
+            <QuickActionForm orderId={orderId} action="cancelled" first={false} open={open === "cancelled"} onToggle={() => setOpen(open === "cancelled" ? null : "cancelled")} needsAgentDetails={false} hasIntake={hasIntake} />
+          ) : null}
+          {refund ? <RefundForm orderId={orderId} refund={refund} open={open === "refund"} onToggle={() => setOpen(open === "refund" ? null : "refund")} /> : null}
         </div>
       ) : null}
-      {to === "cancelled" || to === "refunded" ? (
-        <Alert tone="warning">
-          Any subscription on this order will be cancelled immediately. Refunds are issued in the Stripe dashboard; the customer is not emailed
-          automatically.
-        </Alert>
+    </div>
+  );
+}
+
+function QuickActionForm({
+  orderId,
+  action,
+  first,
+  open,
+  onToggle,
+  needsAgentDetails,
+  hasIntake,
+}: {
+  orderId: string;
+  action: QuickAction;
+  first: boolean;
+  open: boolean;
+  onToggle: () => void;
+  needsAgentDetails: boolean;
+  hasIntake: boolean;
+}) {
+  const [state, formAction] = useActionState<FormState, FormData>(changeOrderStatusAction.bind(null, orderId), {});
+  const danger = action === "cancelled";
+  const oneClick = action === "processing" || (action === "ready_for_fulfillment" && hasIntake);
+  if (oneClick) {
+    return (
+      <form action={formAction} className="space-y-2">
+        <Message state={state} />
+        <input type="hidden" name="to" value={action} />
+        <SubmitButton variant={first ? "primary" : "secondary"} className="w-full" pendingLabel="Updating…">
+          {QUICK_LABEL[action]}
+        </SubmitButton>
+      </form>
+    );
+  }
+  return (
+    <div className={open ? "rounded-md border border-line bg-paper p-3" : undefined}>
+      <Button variant={danger ? "ghost" : first && !open ? "primary" : "secondary"} className={danger ? "w-full text-danger-fg" : "w-full"} onClick={onToggle} aria-expanded={open}>
+        {QUICK_LABEL[action]}
+      </Button>
+      {open ? (
+        <form action={formAction} className="mt-3 space-y-3">
+          <Message state={state} />
+          <input type="hidden" name="to" value={action} />
+          {action === "ready_for_fulfillment" && !hasIntake ? (
+            <Alert tone="warning">The customer hasn&apos;t submitted onboarding, so there&apos;s no provider entry sheet yet.</Alert>
+          ) : null}
+          {action === "information_needed" ? (
+            <TextAreaField id={`qa-${orderId}-message`} name="infoRequestMessage" label="What do you need from the customer?" rows={4} hint="Emailed to the customer and shown in their account. They can reply and upload files." />
+          ) : null}
+          {action === "submitted_to_provider" ? (
+            <TextField id={`qa-${orderId}-ref`} name="externalReference" label="Provider order / reference #" hint="From the partner's dashboard after you place the order." />
+          ) : null}
+          {action === "completed" && needsAgentDetails ? (
+            <>
+              <TextField id={`qa-${orderId}-agent-name`} name="agentName" label="Registered agent name (as listed with the state)" />
+              <TextAreaField id={`qa-${orderId}-agent-address`} name="agentAddress" label="Registered office address" rows={2} />
+            </>
+          ) : null}
+          {danger ? (
+            <Alert tone="warning">Cancels the order, its services and any auto-renewal. It does not refund the payment; use Refund for that.</Alert>
+          ) : null}
+          <TextAreaField id={`qa-${orderId}-${action}-note`} name="note" label="Internal note" optional rows={2} />
+          {action === "submitted_to_provider" || action === "completed" ? (
+            <CheckboxField id={`qa-${orderId}-${action}-notify`} name="notify" label="Email the customer about this update" defaultChecked />
+          ) : null}
+          <SubmitButton variant={danger ? "danger" : "primary"} size="sm" pendingLabel="Updating…">
+            {action === "information_needed" ? "Send request" : danger ? "Cancel this order" : "Confirm"}
+          </SubmitButton>
+        </form>
       ) : null}
-      <TextAreaField name="note" label="Internal note" optional rows={2} />
-      {to !== "information_needed" ? (
-        <CheckboxField name="notify" label="Email the customer about this update" defaultChecked={notifyDefault} key={to} hint={to === "processing" ? "No customer email is sent for Processing." : undefined} />
+    </div>
+  );
+}
+
+function RefundForm({ orderId, refund, open, onToggle }: { orderId: string; refund: { available: boolean; note: string }; open: boolean; onToggle: () => void }) {
+  const [state, action] = useActionState<FormState, FormData>(refundOrderAction.bind(null, orderId), {});
+  return (
+    <div className={open ? "rounded-md border border-line bg-paper p-3" : undefined}>
+      <Button variant="ghost" className="w-full text-danger-fg" onClick={onToggle} aria-expanded={open}>
+        Refund
+      </Button>
+      {open ? (
+        refund.available ? (
+          <form action={action} className="mt-3 space-y-3">
+            <Message state={state} />
+            <p className="text-sm text-muted">{refund.note}</p>
+            <TextAreaField id={`refund-${orderId}-note`} name="note" label="Internal note" optional rows={2} />
+            <CheckboxField id={`refund-${orderId}-confirm`} name="confirm" label="Refund the full amount and cancel this order's services" error={state.errors?.confirm} />
+            <SubmitButton variant="danger" size="sm" pendingLabel="Refunding…">
+              Refund order
+            </SubmitButton>
+          </form>
+        ) : (
+          <p className="mt-3 text-sm text-muted">{refund.note}</p>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+const PROVIDER_NEXT: Record<string, Array<{ value: string; label: string }>> = {
+  pending_manual: [{ value: "submitted", label: "Submitted" }, { value: "cancelled", label: "Cancelled (not needed)" }],
+  submitted: [{ value: "processing", label: "Processing" }, { value: "completed", label: "Completed" }, { value: "failed", label: "Failed" }, { value: "cancelled", label: "Cancelled" }],
+  processing: [{ value: "completed", label: "Completed" }, { value: "failed", label: "Failed" }, { value: "cancelled", label: "Cancelled" }],
+  failed: [{ value: "submitted", label: "Resubmitted" }, { value: "cancelled", label: "Cancelled" }],
+};
+
+/** Add or edit a provider reference, and (for change-of-agent filings) move the filing along. */
+export function ProviderOrderForm({
+  providerOrderId,
+  orderId,
+  status,
+  reference,
+  allowStatus,
+}: {
+  providerOrderId: string;
+  orderId: string;
+  status: string;
+  reference: string | null;
+  allowStatus: boolean;
+}) {
+  const [state, action] = useActionState<FormState, FormData>(updateProviderOrderAction.bind(null, providerOrderId, orderId), {});
+  const next = allowStatus ? (PROVIDER_NEXT[status] ?? []) : [];
+  return (
+    <form action={action} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div className="space-y-3 sm:col-span-2">
+        <Message state={state} />
+      </div>
+      <TextField id={`po-${providerOrderId}-ref`} name="externalReference" label="Provider reference / filing #" defaultValue={reference ?? ""} />
+      {next.length ? (
+        <SelectField id={`po-${providerOrderId}-status`} name="status" label="Move to" placeholder="(no change)" options={next} defaultValue="" error={state.errors?.status} />
       ) : (
-        <p className="text-sm text-muted">The customer is always emailed about information requests.</p>
+        <span className="hidden sm:block" />
       )}
-      <SubmitButton pendingLabel="Updating…">Update order</SubmitButton>
+      <div className="sm:col-span-2">
+        <SubmitButton variant="secondary" size="sm" pendingLabel="Saving…">
+          Save
+        </SubmitButton>
+      </div>
     </form>
   );
 }

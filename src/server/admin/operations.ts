@@ -9,6 +9,7 @@ import {
   entityServices,
   informationRequests,
   orders,
+  payments,
   providerOrders,
   services,
   subscriptions,
@@ -17,6 +18,7 @@ import {
   type Order,
   type OrderStatus,
 } from "@/db/schema";
+import type { ProviderOrderStatus } from "@/server/providers/types";
 import { canTransition, ORDER_STATUS } from "@/lib/order-status";
 import { audit, type Actor } from "@/server/audit";
 import { createDocument, notifyCustomerOfDocument } from "@/server/documents";
@@ -55,10 +57,14 @@ export async function changeOrderStatus(orderId: string, input: StatusChangeInpu
     }
     const now = new Date();
     const patch: Partial<Order> = { status: input.to };
-    const openProvider = await tx
+    const openAll = await tx
       .select()
       .from(providerOrders)
       .where(and(eq(providerOrders.orderId, order.id), inArray(providerOrders.status, ["pending_manual", "submitted", "processing"])));
+    // Order-level status changes move the main provider order. A change-of-agent filing is
+    // tracked on its own (updateProviderOrder) because it usually finishes later.
+    const openProvider = openAll.filter((po) => po.operation !== "change_of_agent");
+    const openChangeOfAgent = openAll.filter((po) => po.operation === "change_of_agent");
 
     if (input.to === "information_needed") {
       const message = input.infoRequestMessage?.trim();
@@ -84,6 +90,9 @@ export async function changeOrderStatus(orderId: string, input: StatusChangeInpu
 
     let activatedRa: { agentName: string; agentAddress: string } | null = null;
     if (input.to === "completed") {
+      if (openChangeOfAgent.length) {
+        throw new AdminActionError("The change-of-agent filing is still open. Record its reference and mark it completed (or cancel it if it isn't needed) first.");
+      }
       patch.completedAt = now;
       for (const po of openProvider) await tx.update(providerOrders).set({ status: "completed", completedAt: now }).where(eq(providerOrders.id, po.id));
       const svc = await tx
@@ -120,7 +129,7 @@ export async function changeOrderStatus(orderId: string, input: StatusChangeInpu
     if (input.to === "cancelled" || input.to === "refunded") {
       if (input.to === "cancelled") patch.cancelledAt = now;
       else patch.refundedAt = now;
-      for (const po of openProvider) await tx.update(providerOrders).set({ status: "cancelled" }).where(eq(providerOrders.id, po.id));
+      for (const po of openAll) await tx.update(providerOrders).set({ status: "cancelled" }).where(eq(providerOrders.id, po.id));
       await tx
         .update(entityServices)
         .set({ status: "cancelled", endsAt: now })
@@ -165,6 +174,78 @@ export async function changeOrderStatus(orderId: string, input: StatusChangeInpu
 
   await notifyStatusChange(outcome.order, input, outcome.activatedRa);
   return outcome.order;
+}
+
+const PROVIDER_FLOW: Record<ProviderOrderStatus, ProviderOrderStatus[]> = {
+  pending_manual: ["submitted", "cancelled"],
+  submitted: ["processing", "completed", "failed", "cancelled"],
+  processing: ["completed", "failed", "cancelled"],
+  failed: ["submitted", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+/** Record a provider reference and/or move one provider order (e.g. a change-of-agent filing) along. */
+export async function updateProviderOrder(
+  providerOrderId: string,
+  input: { externalReference?: string; status?: ProviderOrderStatus; note?: string },
+  actor: AdminActor,
+) {
+  return db.transaction(async (tx) => {
+    const [po] = await tx.select().from(providerOrders).where(eq(providerOrders.id, providerOrderId)).for("update").limit(1);
+    if (!po) throw new AdminActionError("Provider order not found.");
+    const ref = input.externalReference?.trim() || null;
+    const patch: Partial<typeof providerOrders.$inferInsert> = {};
+    if (ref !== null && ref !== po.externalReference) patch.externalReference = ref.slice(0, 200);
+    if (input.status && input.status !== po.status) {
+      if (!PROVIDER_FLOW[po.status].includes(input.status)) throw new AdminActionError(`Can't move this from ${po.status.replace("_", " ")} to ${input.status.replace("_", " ")}.`);
+      if (input.status === "submitted" && !(ref ?? po.externalReference)) throw new AdminActionError("Enter the reference or filing number first.");
+      patch.status = input.status;
+      if (input.status === "submitted") Object.assign(patch, { submittedAt: new Date(), submittedByUserId: actor.userId });
+      if (input.status === "completed") patch.completedAt = new Date();
+    }
+    if (!Object.keys(patch).length && !input.note?.trim()) throw new AdminActionError("Nothing to update.");
+    if (Object.keys(patch).length) await tx.update(providerOrders).set(patch).where(eq(providerOrders.id, po.id));
+    if (input.note?.trim()) {
+      await tx.insert(adminNotes).values({ authorUserId: actor.userId, orderId: po.orderId, body: `[${po.operation.replace(/_/g, " ")}] ${input.note.trim()}` });
+    }
+    await audit(
+      {
+        actor,
+        action: "provider_order.updated",
+        targetType: "provider_order",
+        targetId: po.id,
+        orderId: po.orderId,
+        metadata: { operation: po.operation, from: po.status, to: patch.status ?? po.status, externalReference: patch.externalReference ?? po.externalReference },
+      },
+      tx,
+    );
+  });
+}
+
+/**
+ * Refund every successful payment on an order through its gateway, then mark the
+ * order refunded (which also cancels its subscriptions and services). Stripe refunds
+ * from here are limited to test mode; live refunds go through the Stripe dashboard.
+ */
+export async function refundOrder(orderId: string, input: { note?: string }, actor: AdminActor) {
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!order) throw new AdminActionError("Order not found.");
+  if (!canTransition(order.status, "refunded")) throw new AdminActionError(`A ${ORDER_STATUS[order.status].label} order can't be refunded.`);
+  const paid = await db
+    .select()
+    .from(payments)
+    .where(and(eq(payments.orderId, order.id), inArray(payments.status, ["succeeded", "partially_refunded"])));
+  for (const p of paid) {
+    try {
+      await gatewayFor(p.gateway).refundPayment(p);
+    } catch (err) {
+      throw new AdminActionError(err instanceof Error ? err.message : "The refund failed. Try again or use the Stripe dashboard.");
+    }
+    await db.update(payments).set({ status: "refunded", amountRefundedCents: p.amountCents }).where(eq(payments.id, p.id));
+    await audit({ actor, action: "payment.refunded", targetType: "payment", targetId: p.id, orderId: order.id, customerId: order.customerId, metadata: { amount: p.amountCents, gateway: p.gateway, by: "admin" } });
+  }
+  return changeOrderStatus(order.id, { to: "refunded", note: input.note, notifyCustomer: false }, actor);
 }
 
 async function notifyStatusChange(order: Order, input: StatusChangeInput, ra: { agentName: string; agentAddress: string } | null) {

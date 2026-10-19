@@ -166,4 +166,11 @@ export const stripeGateway: PaymentGateway = {
     if (!sub.stripeSubscriptionId) return;
     await getStripe().subscriptions.cancel(sub.stripeSubscriptionId);
   },
+
+  async refundPayment(payment) {
+    // Refunds from the admin are limited to test mode until live payments are approved.
+    if (!stripeIsTestMode()) throw new Error("Live refunds must be issued in the Stripe dashboard.");
+    if (!payment.stripePaymentIntentId) throw new Error("This payment has no Stripe payment reference. Refund it in the Stripe dashboard.");
+    await getStripe().refunds.create({ payment_intent: payment.stripePaymentIntentId, metadata: { payment_id: payment.id } });
+  },
 };

@@ -21,4 +21,7 @@ export const simulatedGateway: PaymentGateway = {
     return null;
   },
   async cancelSubscriptionNow() {},
+  async refundPayment() {
+    // Nothing to call: the payment row is marked refunded by the caller.
+  },
 };

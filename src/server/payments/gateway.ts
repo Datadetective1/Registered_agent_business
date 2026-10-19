@@ -1,5 +1,5 @@
 import "server-only";
-import type { Customer, Order, OrderItem, Subscription } from "@/db/schema";
+import type { Customer, Order, OrderItem, Payment, Subscription } from "@/db/schema";
 import { paymentsMode } from "@/server/env";
 import { simulatedGateway } from "./simulated";
 import { stripeGateway } from "./stripe";
@@ -15,6 +15,8 @@ export interface PaymentGateway {
   setAutoRenew(sub: Subscription, autoRenew: boolean): Promise<SubscriptionSync | null>;
   /** Cancel immediately (used when an order is cancelled/refunded by an admin). */
   cancelSubscriptionNow(sub: Subscription): Promise<void>;
+  /** Fully refund a payment. Throws if the gateway can't do it from here. */
+  refundPayment(payment: Payment): Promise<void>;
 }
 
 /** The gateway for new checkouts, or null if payments are disabled. */

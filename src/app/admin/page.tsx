@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/layout";
 import { LEGAL_DOCS } from "@/config/legal";
 import { siteDefaults } from "@/config/site";
-import { ORDER_STATUS, ORDER_TYPE_LABEL } from "@/lib/order-status";
+import { ORDER_TYPE_LABEL } from "@/lib/order-status";
 import { formatDate, formatDateTime, orderNumberLabel } from "@/lib/utils";
 import { dashboardData } from "@/server/admin/queries";
 import { appUrl, emailTransportName, paymentsMode, stripeIsTestMode } from "@/server/env";
@@ -35,30 +35,36 @@ async function launchChecklist() {
 export default async function AdminDashboard() {
   await requireAdmin();
   const [d, checklist] = await Promise.all([dashboardData(), launchChecklist()]);
-  const tiles: Array<{ status: keyof typeof ORDER_STATUS; hint: string }> = [
-    { status: "ready_for_fulfillment", hint: "Place with provider" },
-    { status: "information_needed", hint: "Waiting on customer" },
-    { status: "payment_confirmed", hint: "Awaiting onboarding" },
-    { status: "submitted_to_provider", hint: "With provider" },
-    { status: "processing", hint: "In progress" },
-    { status: "completed", hint: "Done" },
+  const tiles: Array<{ label: string; count: number; hint: string; href: string; tone?: "warning" | "danger" }> = [
+    { label: "New orders", count: d.byStatus.payment_confirmed ?? 0, hint: "Paid, waiting on customer info", href: "/admin/orders?status=payment_confirmed" },
+    { label: "Needs information", count: d.byStatus.information_needed ?? 0, hint: "Waiting on the customer", href: "/admin/orders?status=information_needed" },
+    { label: "Ready for provider", count: d.byStatus.ready_for_fulfillment ?? 0, hint: "Place with the provider", href: "/admin/orders?status=ready_for_fulfillment", tone: "warning" },
+    { label: "Submitted", count: d.byStatus.submitted_to_provider ?? 0, hint: "With the provider", href: "/admin/orders?status=submitted_to_provider" },
+    { label: "Processing", count: d.byStatus.processing ?? 0, hint: "In progress", href: "/admin/orders?status=processing" },
+    { label: "Completed", count: d.completedLast30, hint: "Last 30 days", href: "/admin/orders?status=completed" },
+    { label: "Upcoming renewals", count: d.upcomingRenewals, hint: "Next 30 days", href: "/admin/subscriptions?filter=upcoming" },
+    { label: "Failed payments", count: d.failedPayments, hint: "Past due or failed (30 days)", href: "/admin/subscriptions?filter=past_due", tone: "danger" },
   ];
   return (
     <div className="space-y-8">
       <PageHeader title="Dashboard" description="Work queue for manual fulfillment." />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map((t) => (
-          <Link key={t.status} href={`/admin/orders?status=${t.status}`} className="rounded-lg border border-line bg-surface p-4 hover:border-line-strong">
-            <p className="text-2xl font-semibold tabular-nums">{d.byStatus[t.status] ?? 0}</p>
-            <p className="mt-1 text-sm font-medium">{ORDER_STATUS[t.status].label}</p>
+          <Link
+            key={t.label}
+            href={t.href}
+            className={`rounded-lg border bg-surface p-4 hover:border-line-strong ${t.count > 0 && t.tone === "warning" ? "border-warning-fg/40" : t.count > 0 && t.tone === "danger" ? "border-danger-fg/40" : "border-line"}`}
+          >
+            <p className="text-2xl font-semibold tabular-nums">{t.count}</p>
+            <p className="mt-1 text-sm font-medium">{t.label}</p>
             <p className="text-xs text-muted">{t.hint}</p>
           </Link>
         ))}
       </div>
 
       <Card>
-        <CardHeader title="Ready for fulfillment" description="Oldest first. Open an order to see the provider entry sheet." />
+        <CardHeader title="Ready for provider" description="Oldest first. Open an order to see the provider entry sheet." />
         <CardBody>
           {d.ready.length === 0 ? (
             <p className="text-sm text-muted">Nothing waiting. 🎉</p>
@@ -66,9 +72,12 @@ export default async function AdminDashboard() {
             <ul className="divide-y divide-line">
               {d.ready.map(({ order, customer, entity }) => (
                 <li key={order.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                  <Link href={`/admin/orders/${order.id}`} className="font-medium text-brand hover:underline">
-                    {orderNumberLabel(order.number)} · {ORDER_TYPE_LABEL[order.type]}
-                  </Link>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Link href={`/admin/orders/${order.id}`} className="font-medium text-brand hover:underline">
+                      {orderNumberLabel(order.number)} · {ORDER_TYPE_LABEL[order.type]}
+                    </Link>
+                    {d.changeOfAgent.has(order.id) ? <Badge tone="warning">+ Change of agent</Badge> : null}
+                  </span>
                   <span className="text-sm text-muted">
                     {entity?.legalName ?? "—"} · {customer.firstName} {customer.lastName} · info received {formatDateTime(order.intakeSubmittedAt)}
                   </span>

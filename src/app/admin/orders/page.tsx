@@ -1,22 +1,24 @@
 import Link from "next/link";
 import { OrderStatusBadge } from "@/components/account/status";
+import { Badge } from "@/components/ui/badge";
 import { FilterTabs, SearchForm } from "@/components/admin/shared";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Table, Td, Th } from "@/components/ui/table";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS, ORDER_TYPE_LABEL } from "@/lib/order-status";
 import { formatDateTime, orderNumberLabel } from "@/lib/utils";
-import { listOrders } from "@/server/admin/queries";
+import { changeOfAgentOrderIds, listOrders } from "@/server/admin/queries";
 import { requireAdmin } from "@/server/auth/guards";
 
 export const metadata = { title: "Orders" };
 
-const FILTERS = ["all", "ready_for_fulfillment", "information_needed", "payment_confirmed", "submitted_to_provider", "processing", "completed", "cancelled", "refunded"] as const;
+const FILTERS = ["all", "payment_confirmed", "information_needed", "ready_for_fulfillment", "submitted_to_provider", "processing", "completed", "cancelled", "refunded"] as const;
 
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
   await requireAdmin();
   const { status = "all", q } = await searchParams;
   const rows = await listOrders({ status, q });
+  const switching = await changeOfAgentOrderIds(rows.map((r) => r.order.id));
   return (
     <div className="space-y-5">
       <PageHeader title="Orders" description="Unpaid checkouts (status New) are hidden unless searched by number." />
@@ -44,6 +46,11 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                     {orderNumberLabel(order.number)}
                   </Link>
                   <span className="block text-xs text-muted">{ORDER_TYPE_LABEL[order.type]}</span>
+                  {switching.has(order.id) ? (
+                    <Badge tone="warning" className="mt-1">
+                      + Change of agent
+                    </Badge>
+                  ) : null}
                 </Td>
                 <Td>
                   <Link href={`/admin/customers/${customer.id}`} className="hover:underline">
