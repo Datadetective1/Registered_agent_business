@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { CheckoutSteps } from "@/components/checkout/checkout-shell";
+import { CheckoutProgress } from "@/components/checkout/checkout-shell";
+import { ClearCheckoutDraft } from "@/components/checkout/clear-draft";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/layout";
@@ -48,7 +49,8 @@ export default async function SuccessPage({ params, searchParams }: { params: Pr
 
   return (
     <Container className="max-w-2xl py-8 sm:py-12">
-      <CheckoutSteps current={3} />
+      <ClearCheckoutDraft />
+      <CheckoutProgress current={4} />
       <div className="mt-8 rounded-xl border border-line bg-surface p-6 sm:p-8">
         <span className="inline-flex size-10 items-center justify-center rounded-full bg-success-bg text-success-fg">
           <CheckIcon />
@@ -58,12 +60,20 @@ export default async function SuccessPage({ params, searchParams }: { params: Pr
           Order #{order.number} · {orderProductName(order.type)} · {formatMoney(order.totalCents)}
         </p>
         <p className="mt-6 text-[16px] leading-relaxed">
-          One more step: tell us about your business so we can start your order. It takes about five minutes, and we&apos;ve emailed
-          you a confirmation.
+          One more step: answer a few questions about your business so we can start your order. It takes about five minutes. We&apos;ve
+          emailed you a confirmation.
         </p>
+        <ol className="mt-6 grid gap-2 text-sm sm:grid-cols-4">
+          {["Order received", "Information submitted", "Processing", "Completed"].map((label, i) => (
+            <li key={label} className={`rounded-md border px-3 py-2 ${i === 0 ? "border-accent bg-success-bg font-medium text-success-fg" : "border-line text-muted"}`}>
+              {i === 0 ? "✓ " : `${i + 1}. `}
+              {label}
+            </li>
+          ))}
+        </ol>
         <div className="mt-6 flex flex-wrap gap-3">
           <ButtonLink href={`/account/orders/${order.id}/onboarding`} size="lg">
-            Complete business information
+            Continue to business details
           </ButtonLink>
           <ButtonLink href="/account" size="lg" variant="secondary">
             Go to my account

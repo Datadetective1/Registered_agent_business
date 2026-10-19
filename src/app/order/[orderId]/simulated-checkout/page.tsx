@@ -12,9 +12,9 @@ import { getCustomerOrder, getOrderItems } from "@/server/orders";
 export const metadata = { title: "Simulated checkout" };
 
 /** Development-only stand-in for Stripe Checkout. Never available in production. */
-export default async function SimulatedCheckoutPage({ params }: { params: Promise<{ orderId: string }> }) {
+export default async function SimulatedCheckoutPage({ params, searchParams }: { params: Promise<{ orderId: string }>; searchParams: Promise<{ declined?: string }> }) {
   if (isProduction() || paymentsMode() !== "simulated") notFound();
-  const { orderId } = await params;
+  const [{ orderId }, { declined }] = await Promise.all([params, searchParams]);
   const session = await requireCustomer(`/order/${orderId}/simulated-checkout`);
   const order = await getCustomerOrder(session.customer.id, orderId);
   if (!order) notFound();
@@ -25,6 +25,11 @@ export default async function SimulatedCheckoutPage({ params }: { params: Promis
         Stripe keys aren&apos;t configured, so this page stands in for Stripe Checkout. No money moves. Completing it runs the same
         fulfillment code as a real Stripe payment.
       </Alert>
+      {declined && order.status === "new" ? (
+        <Alert tone="danger" role="alert" title="Your card was declined" className="mt-4">
+          No charge was made. Try again with a different card.
+        </Alert>
+      ) : null}
       <div className="mt-6">
         <OrderSummary lines={items.map(({ item }) => ({ description: item.description, amountCents: item.totalCents, billing: item.billing, kind: item.kind }))} />
       </div>
@@ -33,7 +38,10 @@ export default async function SimulatedCheckoutPage({ params }: { params: Promis
           <SubmitButton size="lg" pendingLabel="Processing…">
             Pay (simulated)
           </SubmitButton>
-          <ButtonLink href={`/order/${order.id}/cancelled`} variant="secondary" size="lg">
+          <ButtonLink href={`/order/${order.id}/simulated-checkout?declined=1`} variant="secondary" size="lg">
+            Simulate a declined card
+          </ButtonLink>
+          <ButtonLink href={`/order/${order.id}/cancelled`} variant="ghost" size="lg">
             Cancel
           </ButtonLink>
         </form>

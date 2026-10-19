@@ -240,6 +240,42 @@ export async function setSubscriptionAutoRenew(customer: Customer, subscriptionI
   }
 }
 
+/** Save the contact step of checkout to the customer's profile (name, phone, contact email, mailing address). */
+export async function saveCheckoutContact(
+  customer: Customer,
+  c: { firstName: string; lastName: string; email: string; phone: string; country: string; line1: string; line2: string; city: string; state: string; postalCode: string },
+  actor: Actor,
+) {
+  const address = {
+    line1: c.line1.trim(),
+    line2: c.line2.trim() || null,
+    city: c.city.trim(),
+    state: c.state.trim(),
+    postalCode: c.postalCode.trim(),
+    country: c.country === "United States" ? "US" : c.country,
+  };
+  await db.transaction(async (tx) => {
+    let addressId = customer.mailingAddressId;
+    if (addressId) {
+      const [row] = await tx
+        .update(addresses)
+        .set(address)
+        .where(and(eq(addresses.id, addressId), eq(addresses.customerId, customer.id)))
+        .returning({ id: addresses.id });
+      addressId = row?.id ?? null;
+    }
+    if (!addressId) {
+      const [row] = await tx.insert(addresses).values({ customerId: customer.id, ...address }).returning({ id: addresses.id });
+      addressId = row.id;
+    }
+    await tx
+      .update(customers)
+      .set({ firstName: c.firstName.trim(), lastName: c.lastName.trim(), email: c.email.trim().toLowerCase(), phone: c.phone.trim(), mailingAddressId: addressId })
+      .where(eq(customers.id, customer.id));
+  });
+  await audit({ actor, action: "customer.contact_saved_at_checkout", targetType: "customer", targetId: customer.id, customerId: customer.id });
+}
+
 export async function updateCustomerProfile(
   customer: Customer,
   data: { firstName: string; lastName: string; email: string; phone?: string; companyName?: string },

@@ -46,6 +46,37 @@ describe("quotes", () => {
   });
 });
 
+describe("checkout answers", () => {
+  it("creates the entity from checkout: formation date for existing businesses, pending formation when forming", async () => {
+    const { customer } = await makeCustomer();
+    const quote = await quoteOrder("registered_agent");
+    const existing = await createPendingOrder({
+      customerId: customer.id,
+      type: "registered_agent",
+      entityId: null,
+      checkoutData: { situation: "existing", entity: { legalName: "Old Co LLC", entityType: "llc", jurisdiction: "FL", formationDate: "2019-03-04" } },
+      quote,
+      termsVersion: "test",
+    });
+    const forming = await createPendingOrder({
+      customerId: customer.id,
+      type: "registered_agent",
+      entityId: null,
+      checkoutData: { situation: "forming", entity: { legalName: "New Co", entityType: "corporation", jurisdiction: "DE", formationDate: null } },
+      quote,
+      termsVersion: "test",
+    });
+    for (const o of [existing, forming]) {
+      expect(await confirmOrderPayment({ orderId: o.id, gateway: "simulated", amountTotalCents: 9900, currency: "usd" }, SYSTEM)).toBe("confirmed");
+    }
+    const rows = await db.select().from(entities).where(eq(entities.customerId, customer.id));
+    const old = rows.find((r) => r.legalName === "Old Co LLC")!;
+    const nu = rows.find((r) => r.legalName === "New Co")!;
+    expect(old).toMatchObject({ jurisdiction: "FL", formationDate: "2019-03-04", status: "unknown" });
+    expect(nu).toMatchObject({ jurisdiction: "DE", entityType: "corporation", formationDate: null, status: "pending_formation" });
+  });
+});
+
 describe("payment confirmation", () => {
   it("provisions entity, subscription, service, payment and notifications exactly once", async () => {
     const { customer } = await makeCustomer();

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  */
 
 const control =
-  "block w-full rounded-md border bg-surface px-3 text-[15px] text-ink placeholder:text-subtle shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand disabled:bg-sand disabled:text-muted";
+  "block w-full rounded-md border bg-surface px-3 text-base sm:text-[15px] text-ink placeholder:text-subtle shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand disabled:bg-sand disabled:text-muted";
 
 function fieldId(name: string) {
   return `f-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;

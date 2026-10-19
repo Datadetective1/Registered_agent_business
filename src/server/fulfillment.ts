@@ -78,7 +78,8 @@ export async function confirmOrderPayment(c: PaymentConfirmation, actor: Actor):
           legalName: isFormation ? (checkout.llcName ?? "New Texas LLC") : (checkout.entity?.legalName ?? "New business"),
           entityType: isFormation ? "llc" : (checkout.entity?.entityType ?? "other"),
           jurisdiction: isFormation ? "TX" : (checkout.entity?.jurisdiction ?? "TX"),
-          status: isFormation ? "pending_formation" : "unknown",
+          status: isFormation ? "pending_formation" : checkout.situation === "forming" ? "pending_formation" : "unknown",
+          formationDate: isFormation ? null : (checkout.entity?.formationDate ?? null),
         })
         .returning();
       entityId = entity.id;

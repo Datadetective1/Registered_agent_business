@@ -7,8 +7,12 @@ import { getActiveServiceByCode } from "./settings";
 
 /** Pre-payment answers stored on the order. */
 export type CheckoutData = {
+  /** Registered agent / address orders: does the business already exist, or is it being formed? */
+  situation?: "existing" | "forming";
   /** New business entered at checkout (when an existing entity wasn't selected). */
-  entity?: { legalName: string; entityType: EntityType; jurisdiction: string };
+  entity?: { legalName: string; entityType: EntityType; jurisdiction: string; formationDate?: string | null };
+  /** Contact details from checkout (also saved to the customer's profile). */
+  contact?: { firstName: string; lastName: string; email: string; phone: string; country: string; line1: string; line2?: string; city: string; state: string; postalCode: string };
   /** Formation: "ours" adds our registered agent service; "own" means the customer names one. */
   raChoice?: "ours" | "own";
   /** Formation: desired LLC name as typed at checkout. */

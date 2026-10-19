@@ -8,18 +8,7 @@ import { useEffect } from "react";
  */
 export function TrackEvent({ name }: { name: string }) {
   useEffect(() => {
-    try {
-      const body = JSON.stringify({
-        name,
-        path: window.location.pathname,
-        referrer: document.referrer || undefined,
-        search: window.location.search || undefined,
-      });
-      if (navigator.sendBeacon) navigator.sendBeacon("/api/analytics/event", new Blob([body], { type: "application/json" }));
-      else void fetch("/api/analytics/event", { method: "POST", body, headers: { "Content-Type": "application/json" }, keepalive: true });
-    } catch {
-      // analytics must never break the page
-    }
+    sendFunnelEvent(name);
   }, [name]);
   return null;
 }
@@ -50,4 +39,20 @@ export function LandingTracker() {
     }
   }, []);
   return null;
+}
+
+/** Send a single allow-listed funnel event (same payload as TrackEvent). */
+export function sendFunnelEvent(name: string) {
+  try {
+    const body = JSON.stringify({
+      name,
+      path: window.location.pathname,
+      referrer: document.referrer || undefined,
+      search: window.location.search || undefined,
+    });
+    if (navigator.sendBeacon) navigator.sendBeacon("/api/analytics/event", new Blob([body], { type: "application/json" }));
+    else void fetch("/api/analytics/event", { method: "POST", body, headers: { "Content-Type": "application/json" }, keepalive: true });
+  } catch {
+    // analytics must never break the page
+  }
 }
