@@ -11,7 +11,7 @@ This is a lean, single-app product for selling:
 Orders are fulfilled **manually** through the wholesale partner's dashboard at launch. The code is structured so a partner API can be plugged in later.
 
 ```
-Visitor → product page → checkout (Stripe) → onboarding form → admin queue
+Visitor → product page → checkout (Company → Contact → Account → Payment via Stripe) → onboarding form → admin queue
 → admin places order with partner → status updates + documents → customer account
 → annual auto-renewal with reminders
 ```
@@ -53,7 +53,7 @@ npm run admin:create -- --email you@yourdomain.com   # prints a generated passwo
 npm run dev                          # http://localhost:3000
 ```
 
-Without Stripe keys the app runs in **simulated payment mode**: checkout goes to a local "Pay (simulated)" page that runs the same fulfillment code as a real Stripe payment.
+Without Stripe keys the app runs in **simulated payment mode**: checkout goes to a local "Pay (simulated)" page that runs the same fulfillment code as a real Stripe payment. It can also simulate a declined card.
 
 ## Stripe (test mode)
 

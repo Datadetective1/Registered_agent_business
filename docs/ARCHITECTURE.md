@@ -83,7 +83,7 @@ Service state is kept separate from billing state. A paid RA subscription doesn'
 ### 3.3 Orders & money
 | Table | Purpose | Key columns |
 | --- | --- | --- |
-| `orders` | One checkout | `number` (human-readable, starts at 10001), `type` (`registered_agent` \| `llc_formation` \| `business_address`), `status`, totals, `checkout_data` (pre-payment answers), `intake` (onboarding answers, zod-validated), Stripe session/intent ids, `terms_accepted_at`, `attribution` |
+| `orders` | One checkout | `number` (human-readable, starts at 10001), `type` (`registered_agent` \| `llc_formation` \| `business_address`), `status`, totals, `checkout_data` (pre-payment answers: situation, entity incl. formation date, contact, LLC name, RA choice), `intake` (onboarding answers, zod-validated), `intake_draft` ("save and finish later" values), Stripe session/intent ids, `terms_accepted_at`, `attribution` |
 | `order_items` | Line items. Service fees and **government fees are separate lines**. | `service_id`, `kind` (`service` \| `government_fee`), `billing`, `unit_amount_cents`, `quantity`, `total_cents` |
 | `subscriptions` | Annual auto-renewing services (mirrors Stripe) | `stripe_subscription_id`, `status`, `current_period_end` (renewal date), `cancel_at_period_end`, `reminders_sent` |
 | `payments` | Every charge attempt, including renewals; this is the customer's invoices/receipts list | `amount_cents`, `status`, `stripe_invoice_id`, `stripe_payment_intent_id`, `receipt_url`, `invoice_url`, `invoice_pdf_url`, `failure_message` |
@@ -92,7 +92,7 @@ Service state is kept separate from billing state. A paid RA subscription doesn'
 ### 3.4 Fulfillment
 | Table | Purpose | Key columns |
 | --- | --- | --- |
-| `provider_orders` | Each piece of work handed to a wholesale provider | `order_id`, `entity_id`, `provider` (`manual` today), `operation`, `status` (`pending_manual` \| `submitted` \| `processing` \| `completed` \| `failed` \| `cancelled`), `external_reference`, `payload` (snapshot of what was or must be entered), `response` |
+| `provider_orders` | Each piece of work handed to a wholesale provider. A switching customer's order has two: `registered_agent` and `change_of_agent`. | `order_id`, `entity_id`, `provider` (`manual` today), `operation`, `status` (`pending_manual` \| `submitted` \| `processing` \| `completed` \| `failed` \| `cancelled`), `external_reference`, `payload` (snapshot of what was or must be entered), `response` |
 | `information_requests` | Admin asks the customer for more information | `order_id`, `message`, `status` (`open` \| `responded` \| `closed`), `customer_response` |
 | `documents` | Metadata for privately stored files | `customer_id`, `entity_id`, `order_id`, `information_request_id`, `type`, `source`, `status`, `visibility` (`customer` \| `internal`), `storage_key`, `mime_type`, `size_bytes`, `sha256`, `metadata`, `customer_viewed_at` |
 
@@ -156,13 +156,15 @@ Pages and actions call into `src/server`, and every customer query is **scoped b
 ## 5. Page map
 
 **Public (indexable)**
-`/` · `/registered-agent` · `/registered-agent/states` · `/registered-agent/[state]` (live states only; Texas at launch) ·
-`/start-an-llc` (Texas) · `/business-address` · `/pricing` · `/how-it-works` · `/faq` · `/about` · `/contact` ·
+`/` · `/registered-agent` · `/registered-agent/states` · `/{state}-registered-agent` (rewritten to `/registered-agent/[state]`; only states with real content, Texas at launch) ·
+`/start-an-llc-texas` (formation service) · `/texas-llc` (informational guide) · `/business-address` · `/pricing` · `/how-it-works` · `/faq` · `/about` · `/contact` ·
 `/guides` · `/guides/[slug]` · `/legal/[slug]` (terms, privacy, refund-policy, registered-agent-terms, formation-disclaimer, mail-address-terms)
 
 **Auth (noindex)**: `/sign-in` · `/create-account` · `/forgot-password` · `/reset-password`
 
-**Order flow (noindex)**: `/order/registered-agent` · `/order/llc-formation` · `/order/business-address` ·
+**Redirects (308)**: `/start-an-llc` → `/start-an-llc-texas`, `/registered-agent/{state}` → `/{state}-registered-agent`.
+
+**Order flow (noindex)**: `/order/registered-agent` · `/order/llc-formation` · `/order/business-address` (each `?step=company|contact|account|payment`) ·
 `/order/[id]/success` · `/order/[id]/cancelled` · `/order/[id]/simulated-checkout` (development only)
 
 **Customer account (noindex, auth)**: `/account` · `/account/entities/[id]` · `/account/orders` · `/account/orders/[id]` ·
@@ -180,20 +182,24 @@ canonical URLs from `APP_URL`, Open Graph/Twitter metadata, JSON-LD (Organizatio
 ## 6. Customer workflow
 
 1. **Land → learn.** Home, product pages and pricing all show transparent prices, with service fee and state fee shown separately.
-2. **Select a product → pre-checkout** (`/order/...`).
-   - RA: choose an existing business or enter a new one (legal name, entity type, state).
-   - LLC: desired name, plus the registered-agent choice (ours for $99/yr, or provide your own).
-   - The customer accepts the terms. If they aren't signed in, they create an account inline or sign in, and their answers are kept.
-3. **Pay** on Stripe Checkout (test mode), or on the simulated checkout locally. Prices are always computed on the server from `services`.
+2. **Checkout** (`/order/...`, `src/components/checkout/wizard.tsx`): four steps, Company → Contact → Account → Payment.
+   - **Company.** RA: "I already have a business" or "I'm forming a new business", then legal name, entity type, state, and an optional formation date ("I don't know" is fine). Signed-in customers can pick a business on file. Forming a Texas LLC offers to switch to the formation checkout with the answers carried over, so formation + state fee + RA is one order. LLC: desired name and the registered agent choice.
+   - **Contact.** Name, email, phone, country and mailing address (saved to the profile).
+   - **Account.** Created (or signed into) without leaving checkout. An email that already has an account switches to sign-in in place. Signed-in customers skip this step.
+   - **Payment.** Itemized review with government fees labelled, edit links, terms, then "Pay securely".
+   - The step is in the URL, so back/forward and refresh work. Answers are kept in `sessionStorage` for the tab (never the password) and cleared on the success page. The same validators (`src/lib/checkout.ts`) run in the browser and again in the server actions (`src/app/order/actions.ts`).
+3. **Pay** on Stripe Checkout (test mode), or on the simulated checkout locally (which can also simulate a declined card). Prices are always computed on the server from `services`.
 4. **Payment confirmed.** This is the webhook, or the success-page fallback; both run the same idempotent function.
    - The order moves to `payment_confirmed`.
    - The entity is created if it's new.
    - For RA, the subscription and the entity service (status `pending`) are recorded.
    - The payment is recorded, the customer gets an order-confirmation email, and the admin gets an alert.
-5. **Onboarding** (`/account/orders/[id]/onboarding`): a product-specific form.
-   - RA: entity details, addresses, contact for forwarding, current agent.
+5. **Onboarding** (`/account/orders/[id]/onboarding`): a product-specific form, prefilled from checkout.
+   - "Save and finish later" stores unvalidated values in `orders.intake_draft`.
+   - RA: entity details, addresses, contact for forwarding, current agent. "Currently has a different registered agent" also creates a `change_of_agent` provider order.
    - LLC: Texas Form 205 information.
    - When it's submitted: `ready_for_fulfillment`, a `provider_orders` row is created through the provider abstraction, and the customer sees a confirmation.
+   - Customers see four plain stages: Order received → Information submitted → Processing → Completed.
    - The customer can keep editing these answers until an admin marks the order submitted to the provider.
 6. **Track.** The dashboard shows entities, services, RA status, renewal dates, order timelines, and documents to download.
 7. **Respond** to information requests: reply and/or upload documents.
@@ -204,17 +210,18 @@ canonical URLs from `APP_URL`, Open Graph/Twitter metadata, JSON-LD (Organizatio
 
 ## 7. Admin workflow (manual fulfillment)
 
-1. **Queue.** `/admin` shows counts by status. "Ready for fulfillment" is the main work queue.
+1. **Queue.** `/admin` tiles: New orders, Needs information, Ready for provider, Submitted, Processing, Completed (30 days), Upcoming renewals, Failed payments. "Ready for provider" is the main work queue; orders that also need a change-of-agent filing carry a badge.
 2. **Open the order** to see the customer, entity, items and payment, the intake answers, and the **Provider entry sheet**.
    The sheet lists every field in provider-dashboard order, with one-click copy and "copy all".
 3. **Place the order** in the wholesale partner dashboard by hand.
-4. **Record it.** Click "Mark submitted to provider" and enter the provider's reference.
+4. **Record it.** The order page has one button per next step (Request information, Mark ready for provider, Mark submitted to provider + reference, Mark processing, Mark completed, Cancel, Refund). Click "Mark submitted to provider" and enter the provider's reference.
    The order moves to `submitted_to_provider`, the customer is notified, and the action is audit-logged.
 5. **Progress:** `processing` → `completed`. At each step the admin can add an internal note, notify the customer (a checkbox), request information (order → `information_needed` + email), or upload documents (customer-visible or internal).
-6. **Complete.** Upload the filed documents and enter the RA details (assigned agent name and address).
+6. **Change of agent** (switching customers only). The change-of-agent filing has its own card: record its reference and move it Submitted → Completed. The order can't be completed while it's open.
+7. **Complete.** Upload the filed documents and enter the RA details (assigned agent name and address).
    The entity service becomes `active` and the customer gets a completion email.
-7. **Ongoing.** When a service-of-process or state-mail document arrives, upload it to the entity. The customer is emailed immediately.
-8. **Everything is audited.** Each order and customer page has an audit trail.
+8. **Ongoing.** When a service-of-process or state-mail document arrives, upload it to the entity. The customer is emailed immediately.
+9. **Everything is audited.** Each order page shows a readable status history and the raw audit trail.
 
 Order statuses and allowed transitions (`src/lib/order-status.ts`):
 ```
@@ -227,7 +234,7 @@ processing → completed | information_needed | cancelled | refunded
 completed → refunded
 cancelled → refunded
 ```
-Refunds are issued in the Stripe dashboard on purpose; the app records them. That keeps money movement a deliberate human act.
+Refunds: the admin "Refund" button (with a confirmation tick box) refunds through the gateway only in Stripe **test** mode or the simulated gateway, then marks the order refunded and cancels its services and auto-renewal. Live-mode refunds stay in the Stripe dashboard until live refunds from the app are explicitly approved.
 
 ## 8. Provider abstraction
 
@@ -237,6 +244,7 @@ interface FulfillmentProvider {
   readonly id: 'manual' /* | 'registered_agents_inc' later */;
   readonly isAutomated: boolean;
   createRegisteredAgentOrder(input: RegisteredAgentOrderInput): Promise<ProviderSubmission>;
+  createChangeOfAgentOrder(input: ChangeOfAgentInput): Promise<ProviderSubmission>;
   createFormationOrder(input: FormationOrderInput): Promise<ProviderSubmission>;
   createBusinessAddressOrder(input: BusinessAddressOrderInput): Promise<ProviderSubmission>;
   createEINOrder(input: EinOrderInput): Promise<ProviderSubmission>;

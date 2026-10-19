@@ -18,15 +18,25 @@ This is how one person runs the business day to day while orders are fulfilled b
    - Each field has a Copy button, and "Copy all" copies the whole sheet as text.
    - Never re-type data from memory. The sheet is exactly what the customer submitted.
 3. Place the order in the partner dashboard and note the partner's order/reference number.
-4. Back in admin, under **Update status**, choose **Submitted**.
+4. Back in admin, under **Next step**, click **Mark submitted to provider**.
    - Paste the reference number.
    - Optionally add an internal note.
-   - Keep **Email the customer** ticked.
-5. When the partner shows the order as in progress, you can move it to **Processing**. This step is optional and sends no email.
+   - Keep **Email the customer** ticked, then **Confirm**.
+   - To fix a reference later, edit it on the provider card and click **Save**.
+5. When the partner shows the order as in progress, you can click **Mark processing**. This step is optional and sends no email.
+
+### Customer switching from another registered agent
+
+Orders marked **+ Change of agent** need two things: registered agent service **and** a change-of-agent filing with the state.
+
+1. Place the registered agent order first (above).
+2. Then handle the filing shown on the **Change of registered agent filing** card: through the partner if it offers this, or by preparing the state's form (Texas: Form 401). Confirm any state fee with the customer before filing.
+3. On that card, enter the reference or state filing number, set **Move to → Submitted** and **Save**. When the state accepts the change, set **Completed**.
+4. The order can't be completed until this filing is completed (or cancelled, if it turns out not to be needed).
 
 ### Need more information from the customer?
 
-- Choose **Information Needed** and write exactly what you need.
+- Click **Request information** and write exactly what you need.
 - The customer is emailed and sees the request in their account, where they can reply and upload files.
 - Their reply appears on the order, and the dashboard flags it.
 - Click **Mark resolved** once it's handled, then continue.
@@ -35,7 +45,7 @@ This is how one person runs the business day to day while orders are fulfilled b
 
 1. **Upload the documents** under Documents on the order: the filed certificate, the RA confirmation, and so on.
    - Choose *Customer can see it* and tick the email notice.
-2. **Registered agent orders** (including formation with our RA): choose **Completed**.
+2. **Registered agent orders** (including formation with our RA): click **Mark completed**.
    - Enter the **registered agent name** and **registered office address** the partner assigned.
    - The customer sees these on their business page and gets an email with them.
 3. **Formation orders**: completing the order marks the LLC as **Active**. Add the SOS file number and formation date on the entity page.
@@ -63,10 +73,10 @@ Do not give legal advice about a document. If asked, say we can't advise and tha
   - Before the end date, check whether the partner needs any action.
   - Review the state's resignation requirements if the customer doesn't appoint a new agent.
 - **Subscription ends:** you get an *[Service ended]* alert. Cancel with the partner, and follow resignation rules where they apply.
-- **Cancelling an order:** set the order to **Cancelled**. Any subscription on it is cancelled immediately. No customer email is sent automatically, so contact them.
+- **Cancelling an order:** click **Cancel order** and confirm. Any subscription on it is cancelled immediately. It does not refund the payment. No customer email is sent automatically, so contact them.
 - **Refunds:**
-  1. Issue the refund in the **Stripe dashboard**. The payment updates here automatically.
-  2. Then set the order to **Refunded** if the whole order is refunded.
+  - In Stripe **test** mode (and simulated development payments): click **Refund**, tick the confirmation box and click **Refund order**. The full amount is refunded through Stripe, and the order's services and auto-renewal are cancelled.
+  - In **live** mode: issue the refund in the **Stripe dashboard** (the payment updates here automatically), then cancel the order. Refunding live payments from the app needs explicit approval first.
 
   State fees generally can't be refunded once a filing has been submitted.
 

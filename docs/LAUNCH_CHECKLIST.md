@@ -15,19 +15,22 @@ Work through this list before taking real customers. The admin dashboard's **Lau
   - What resignation procedure applies?
   - Is the delivery-time language accurate?
 - [ ] "Registered agent address isn't a mailing address" wording confirmed against partner policy.
+- [ ] **Agent of record named.** Set Admin → Settings → Registered agent messaging → "Agent of record name" to the partner's legal name as it appears on state filings (until then the site says "our nationwide registered agent partner").
+- [ ] **Change-of-agent filings decided.** Who files them (partner or us), whether the state fee (Texas Form 401: $15) is absorbed or charged, and the wording in "Change-of-agent message".
 - [ ] Texas state page facts re-verified (`src/content/states.ts`, last verified 2026-10-19 against Texas SOS pages).
 
 ## Pricing & products
 
 - [ ] Prices confirmed in Admin → Settings → Services & pricing. Current values are placeholders:
-  - RA: $99/yr
-  - Texas LLC: $49 service fee + $300 state fee
-- [ ] Available registered agent states set. TX only by default; add only states you can fulfill.
+  - RA: $99/yr (no setup or monthly fee)
+  - Texas LLC: **$149 service fee (temporary)** + $300 state fee (government fee)
+- [ ] Wholesale cost is **not** stored or shown anywhere in the app. Track margin outside the product.
+- [ ] Available registered agent states confirmed. **All 50 states are enabled by default** (the partner is nationwide); remove any state you can't fulfill. The site only claims "all 50 states" while all 50 are enabled.
 - [ ] Business address service left **unavailable** until its pricing, features (actual partner capabilities) and terms are final.
 
 ## Payments (only with explicit approval)
 
-- [ ] End-to-end test in **Stripe test mode**: purchase, webhook, renewal via test clock, failed payment, refund, and billing portal.
+- [ ] End-to-end test in **Stripe test mode**: purchase, webhook, renewal via test clock, failed payment, declined card (4000 0000 0000 0002), admin refund, and billing portal.
 - [ ] Stripe account activated; business details and statement descriptor set.
 - [ ] Live webhook endpoint created for `/api/webhooks/stripe` with the 7 events listed in the README.
 - [ ] Billing portal configured in **live** mode.
