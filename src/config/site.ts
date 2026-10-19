@@ -53,6 +53,22 @@ export const siteDefaults = {
     x: "",
     facebook: "",
   },
+  registeredAgent: {
+    /**
+     * The company listed as registered agent of record on state filings (our wholesale
+     * partner). Empty = generic wording ("our nationwide registered agent partner").
+     * Customers always see the exact agent name/address in their account once active.
+     */
+    agentOfRecordName: "",
+    /** Shown wherever renewal terms are summarized (price cards, checkout, emails). */
+    renewalMessage: "Renews automatically each year. You can turn off auto-renewal anytime from your account.",
+    /**
+     * Shown to customers switching from another registered agent. Keep it accurate to how
+     * change-of-agent filings are currently handled (included, separate charge, or customer-filed).
+     */
+    changeOfAgentMessage:
+      "Switching from another registered agent? The state has to be notified with a change-of-agent filing. After checkout, we'll confirm the next steps for your business.",
+  },
   operations: {
     /** Where internal alerts (new order, customer responded, renewal cancelled) are addressed. */
     adminNotificationEmail: "operations@example.com",

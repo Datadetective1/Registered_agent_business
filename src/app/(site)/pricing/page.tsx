@@ -29,7 +29,7 @@ export default async function PricingPage() {
           <SectionHeading
             eyebrow="Pricing"
             title="Simple prices, shown in full"
-            lead="Our service fees and any government fees are listed separately, so you can see exactly what you're paying for."
+            lead="No tiers, no setup fees and no hidden fees. Our service fees and any government fees are listed separately, so you can see exactly what you're paying for."
           />
         </Container>
       </Section>
@@ -41,10 +41,14 @@ export default async function PricingPage() {
             price={c.raPrice}
             period="per year"
             description={c.ra?.shortDescription ?? ""}
-            lines={[["Annual service", `${c.raPrice}/year`]]}
+            lines={[
+              ["Annual service", `${c.raPrice}/year`],
+              ["Setup fee", "$0"],
+              ["Monthly fee", "$0"],
+            ]}
             features={c.ra?.features ?? []}
             cta={c.raActive ? { href: "/order/registered-agent", label: "Get started" } : null}
-            note="Renews automatically each year. Turn off auto-renewal anytime."
+            note={c.renewalMessage}
           />
           <PlanCard
             name="Texas LLC Formation"
@@ -53,12 +57,12 @@ export default async function PricingPage() {
             description={c.formation?.shortDescription ?? ""}
             lines={[
               ["Our service fee", c.formationFee],
-              [c.stateFeeLabel, c.stateFee],
-              ["Optional registered agent", `${c.raPrice}/year`],
+              [`${c.stateFeeLabel} (government fee)`, c.stateFee],
+              ["Optional registered agent", `+ ${c.raPrice}/year`],
             ]}
             features={c.formation?.features ?? []}
             cta={c.formationActive ? { href: "/order/llc-formation", label: "Start my LLC" } : null}
-            note="The state filing fee is passed through at cost."
+            note="The state filing fee is paid to Texas at cost. It isn't our revenue."
           />
           <PlanCard
             name="Business Address"

@@ -8,13 +8,20 @@ import { requireAdmin } from "@/server/auth/guards";
 export const metadata = { title: "Analytics" };
 
 const LABELS: Record<(typeof FUNNEL_EVENTS)[number], string> = {
-  landing_page: "Visits (landing page)",
+  landing_page: "Visits (entry page)",
+  homepage_viewed: "Homepage viewed",
+  registered_agent_page_viewed: "Registered agent page viewed",
+  formation_page_viewed: "Texas LLC page viewed",
   pricing_viewed: "Pricing viewed",
+  checkout_started: "Checkout started (company step)",
+  checkout_contact_step: "Reached contact step",
+  checkout_account_step: "Reached account step",
+  checkout_payment_step: "Reached payment step",
   account_created: "Accounts created",
-  checkout_started: "Checkouts started",
-  formation_started: "Formation checkouts started",
-  checkout_completed: "Checkouts completed (paid)",
+  payment_started: "Sent to payment",
+  checkout_completed: "Paid orders",
   registered_agent_purchased: "Registered agent purchased",
+  onboarding_completed: "Onboarding completed",
 };
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {

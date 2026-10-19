@@ -222,6 +222,25 @@ export function SiteSettingsForm({ values, legalDocs }: { values: Record<string,
         </div>
       </fieldset>
       <fieldset className={section}>
+        <legend className="px-1 text-sm font-semibold">Registered agent messaging</legend>
+        <TextField
+          name="registeredAgent.agentOfRecordName"
+          label="Registered agent of record (wholesale partner)"
+          optional
+          hint="Shown in disclosures as the company listed on state records. Leave empty to say “our nationwide registered agent partner”."
+          defaultValue={v("registeredAgent.agentOfRecordName")}
+        />
+        <TextAreaField name="registeredAgent.renewalMessage" label="Renewal message" rows={2} defaultValue={v("registeredAgent.renewalMessage")} error={e["registeredAgent.renewalMessage"]} />
+        <TextAreaField
+          name="registeredAgent.changeOfAgentMessage"
+          label="Change-of-agent message"
+          rows={3}
+          hint="Shown to customers switching from another agent. Keep it accurate to how you handle change filings (included, extra charge, or customer files)."
+          defaultValue={v("registeredAgent.changeOfAgentMessage")}
+          error={e["registeredAgent.changeOfAgentMessage"]}
+        />
+      </fieldset>
+      <fieldset className={section}>
         <legend className="px-1 text-sm font-semibold">Operations</legend>
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField name="operations.adminNotificationEmail" label="Internal alerts email" defaultValue={v("operations.adminNotificationEmail")} error={e["operations.adminNotificationEmail"]} />

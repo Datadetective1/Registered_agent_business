@@ -30,3 +30,8 @@ export function stateName(code: string | null | undefined): string {
 }
 
 export const STATE_CODES = US_STATES.map((s) => s.code) as [string, ...string[]];
+
+/** Public URL of a state's registered agent landing page (see rewrites in next.config.ts). */
+export function statePagePath(slug: string): string {
+  return `/${slug}-registered-agent`;
+}

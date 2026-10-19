@@ -6,17 +6,34 @@ import { analyticsEvents } from "@/db/schema";
 /** Funnel events. Keep this list short and meaningful. */
 export const FUNNEL_EVENTS = [
   "landing_page",
+  "homepage_viewed",
+  "registered_agent_page_viewed",
+  "formation_page_viewed",
   "pricing_viewed",
   "checkout_started",
-  "checkout_completed",
+  "checkout_contact_step",
+  "checkout_account_step",
+  "checkout_payment_step",
   "account_created",
-  "formation_started",
+  "payment_started",
+  "checkout_completed",
   "registered_agent_purchased",
+  "onboarding_completed",
 ] as const;
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
 
 /** Events the browser may report (the rest are recorded server-side only). */
-export const CLIENT_EVENTS: FunnelEvent[] = ["landing_page", "pricing_viewed"];
+export const CLIENT_EVENTS: FunnelEvent[] = [
+  "landing_page",
+  "homepage_viewed",
+  "registered_agent_page_viewed",
+  "formation_page_viewed",
+  "pricing_viewed",
+  "checkout_started",
+  "checkout_contact_step",
+  "checkout_account_step",
+  "checkout_payment_step",
+];
 
 export type TrackContext = { path?: string | null; referrer?: string | null; search?: string | null };
 

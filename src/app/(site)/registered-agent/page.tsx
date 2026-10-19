@@ -1,55 +1,60 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/site/json-ld";
 import { CtaBand, Disclosure, FaqList, FeatureList, Hero, PriceCard, SectionHeading, Steps } from "@/components/site/marketing";
+import { TrackEvent } from "@/components/site/track-event";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/layout";
-import { faqGroups } from "@/content/faq";
+import { findFaqs } from "@/content/faq";
 import { getMarketingContext } from "@/server/marketing";
 import { breadcrumbJsonLd, faqJsonLd, pageMetadata, serviceJsonLd } from "@/server/seo";
 
 export async function generateMetadata() {
   const c = await getMarketingContext();
   return pageMetadata({
-    title: `Registered Agent Service: ${c.raPrice}/year`,
-    description: `Registered agent service for ${c.raPrice} per year. We receive service of process and state correspondence for your business and deliver it to your secure online account.`,
+    title: `Registered Agent Service: ${c.raPrice}/Year, No Setup Fee`,
+    description: `Registered agent service for ${c.raPrice} per year. We receive service of process and state notices for your business and deliver them to your secure online account. ${c.raNationwide ? "Available in all 50 states." : ""}`.trim(),
     path: "/registered-agent",
   });
 }
 
 export default async function RegisteredAgentPage() {
   const c = await getMarketingContext();
-  const faqs = faqGroups(c)[0].items.concat(faqGroups(c)[2].items.slice(0, 4));
+  const faqs = findFaqs(c, [
+    "Does my business need a registered agent?",
+    "Can I be my own registered agent?",
+    "Can I use the registered agent address as my business address?",
+    "Who is listed as the registered agent on state records?",
+    "I already have a registered agent. How do I switch?",
+    "How does renewal work?",
+    "What happens if I turn off auto-renewal?",
+    "Which states do you cover?",
+  ]);
 
   return (
     <>
+      <TrackEvent name="registered_agent_page_viewed" />
       <JsonLd
-        data={await serviceJsonLd({
-          name: "Registered Agent Service",
-          description: c.ra?.shortDescription ?? "",
-          path: "/registered-agent",
-          priceCents: c.raPriceCents,
-          recurring: true,
-        })}
+        data={await serviceJsonLd({ name: "Registered Agent Service", description: c.ra?.shortDescription ?? "", path: "/registered-agent", priceCents: c.raPriceCents, recurring: true })}
       />
       <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Registered Agent", path: "/registered-agent" }])} />
       <JsonLd data={faqJsonLd(faqs)} />
 
       <Hero
         eyebrow="Registered agent service"
-        title="A dependable registered agent for your business"
+        title="Registered agent service for one clear annual price"
         lead={
           <p>
-            We accept legal papers and official state mail on behalf of your business, scan them, and deliver them to your secure
-            online account, with an email alert each time. {c.raPrice} per year, renewing annually.
+            We accept legal papers and official state notices for your business, scan them, and deliver them to your secure online account
+            with an email alert. {c.raPrice} per year, no setup fee, no monthly fee.
           </p>
         }
         actions={
           <>
-            <ButtonLink href="/order/registered-agent" size="lg">
+            <ButtonLink href="/order/registered-agent" size="lg" className="w-full sm:w-auto">
               Get started for {c.raPrice}/year
             </ButtonLink>
-            <ButtonLink href="#how-switching-works" size="lg" variant="secondary">
-              How switching works
+            <ButtonLink href="#switching" size="lg" variant="secondary" className="w-full sm:w-auto">
+              Switching agents?
             </ButtonLink>
           </>
         }
@@ -69,7 +74,7 @@ export default async function RegisteredAgentPage() {
                 <p className="text-sm text-muted">Temporarily unavailable. Please contact us.</p>
               )
             }
-            footnote={`Currently available for businesses registered in: ${c.raStatesLabel || "—"}.`}
+            footnote={c.renewalMessage}
           />
         }
       />
@@ -79,86 +84,105 @@ export default async function RegisteredAgentPage() {
           <div>
             <SectionHeading
               title="What a registered agent does"
-              lead="Most states require every LLC and corporation to name a registered agent: a person or company with a physical address in the state that accepts legal papers and official notices for the business."
+              lead="States require every LLC and corporation to name a registered agent: a person or company with an in-state street address that accepts legal papers and official notices for the business."
             />
             <div className="mt-6 space-y-4 text-[16px] leading-relaxed text-muted">
               <p>
-                When someone sues a business, the papers are delivered (&ldquo;served&rdquo;) to its registered agent. The state also
-                sends important notices there. If those documents are missed, a business can lose its good standing or face a
-                judgment it never had a chance to respond to.
+                When someone sues a business, the papers are delivered (&ldquo;served&rdquo;) to its registered agent. The state also sends
+                important notices there. If those documents are missed, a business can lose its good standing or face a judgment it never had a
+                chance to respond to.
               </p>
               <p>
-                Using a registered agent service means you don&apos;t need to be at a fixed address during business hours, your
-                own address isn&apos;t listed as your registered office, and legal papers don&apos;t arrive at your home or in front
-                of customers.
+                With a registered agent service, you don&apos;t need to be at a fixed address during business hours, your home address isn&apos;t
+                the one on the registered agent record, and legal papers don&apos;t arrive at your home or in front of customers.
               </p>
             </div>
           </div>
           <div className="space-y-6">
             <div className="rounded-lg border border-line bg-surface p-6">
-              <h3 className="font-sans text-base font-semibold">Included with your service</h3>
-              <FeatureList className="mt-4" items={c.ra?.features ?? []} />
+              <h3 className="font-sans text-base font-semibold">Included every year</h3>
+              <FeatureList
+                className="mt-4"
+                items={[
+                  "Registered agent representation in your state",
+                  "Receipt of service of process",
+                  "Receipt of qualifying state and government notices",
+                  "Digital copies in your secure online account",
+                  "Email alerts when documents arrive",
+                  "Renewal reminders before each annual renewal",
+                ]}
+              />
             </div>
-            <Disclosure title="The registered agent address is not a general mailing address">
-              Our registered agent address is for service of process and official correspondence from the Secretary of State
-              and other government agencies only. Please don&apos;t use it for everyday business mail, banking, packages, or as your
-              principal office. Need a mailing address? See our{" "}
-              <Link href="/business-address" className="text-brand underline underline-offset-2">
-                Business Address service
-              </Link>
-              .
+            <Disclosure title="The registered agent address is not a business mailing address">
+              <p>
+                It&apos;s only for legal papers and official government notices. Please don&apos;t use it for banking, Amazon or other marketplace
+                accounts, insurance, Google Business Profile verification, licenses, packages, or everyday business mail.
+              </p>
+              <p className="mt-2">
+                Need an address for those?{" "}
+                <Link href="/business-address" className="text-brand underline underline-offset-2">
+                  Business Address
+                </Link>{" "}
+                is a separate service.
+              </p>
             </Disclosure>
           </div>
         </Container>
       </Section>
 
-      <Section id="how-switching-works" className="scroll-mt-20 border-y border-line bg-surface">
+      <Section className="border-y border-line bg-surface">
         <Container>
-          <SectionHeading
-            eyebrow="Getting started"
-            title="Setting up or switching your registered agent"
-            lead="Whether your business is new or already has an agent, setup is straightforward."
-          />
+          <SectionHeading eyebrow="How it works" title="What happens after you sign up" />
           <div className="mt-10">
             <Steps
               steps={[
-                { title: "Purchase service", body: `${c.raPrice} per year. Choose the business it's for at checkout.` },
-                { title: "Complete onboarding", body: "Confirm your business details and who we should notify when documents arrive." },
-                { title: "Get your agent details", body: "Your account shows the exact registered agent name and address to use." },
-                {
-                  title: "Update the state, if switching",
-                  body: "Existing businesses file a change of registered agent with the state. Your previous agent stays on record until it's accepted.",
-                },
+                { title: "Sign up in minutes", body: "Tell us about your company, create your account and pay. No paperwork to print." },
+                { title: "We set up your service", body: "We confirm your details and set up registered agent service. Your account then shows the agent name and address to use with the state." },
+                { title: "Documents come to your account", body: "When legal papers or state notices arrive, they're scanned to your account and we email you right away." },
               ]}
             />
           </div>
-          <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted">
-            {c.brand} provides registered agent service in partnership with a nationwide commercial registered agent. Depending
-            on your state, our partner may be listed as the registered agent of record. Your account always shows the exact name
-            and address to use on state filings.
-          </p>
         </Container>
       </Section>
 
-      <Section>
-        <Container className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+      <Section id="switching" className="scroll-mt-20">
+        <Container className="grid gap-10 lg:grid-cols-2">
           <div>
-            <SectionHeading title="Questions about registered agents" />
-            <p className="mt-4 text-[15px] text-muted">
-              Coverage today: {c.raStatesLabel || "—"}.{" "}
+            <SectionHeading title="Already have a registered agent?" />
+            <p className="mt-4 text-[16px] leading-relaxed text-muted">{c.changeOfAgentMessage}</p>
+            <p className="mt-3 text-[16px] leading-relaxed text-muted">Your current agent stays on record until the state accepts the change, so there&apos;s no gap in coverage.</p>
+            <ButtonLink href="/order/registered-agent" variant="secondary" className="mt-6">
+              Switch to {c.brand}
+            </ButtonLink>
+          </div>
+          <div className="rounded-lg border border-line bg-surface p-6">
+            <h3 className="font-sans text-base font-semibold">Who appears on state records</h3>
+            <p className="mt-2 text-[15px] leading-relaxed text-muted">
+              {c.brand} provides registered agent service through {c.agentOfRecord}, which is the registered agent of record listed on state
+              filings. Its in-state office is your business&apos;s registered office. You&apos;ll find the exact name and address to use in your
+              account once your service is set up.
+            </p>
+            <p className="mt-4 text-[15px] leading-relaxed text-muted">
+              Coverage: {c.raNationwide ? "all 50 states" : c.raCoverageLabel}.{" "}
               <Link href="/registered-agent/states" className="text-brand underline underline-offset-2">
-                See all states
+                See coverage by state
               </Link>
               .
             </p>
           </div>
+        </Container>
+      </Section>
+
+      <Section className="border-t border-line bg-surface">
+        <Container className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <SectionHeading title="Registered agent questions" />
           <FaqList faqs={faqs} />
         </Container>
       </Section>
 
       <CtaBand
         title="Keep your business in good standing"
-        body={`Registered agent service for ${c.raPrice} per year. Turn off auto-renewal anytime.`}
+        body={`Registered agent service for ${c.raPrice} per year. No setup fee, no monthly fee.`}
         primary={{ href: "/order/registered-agent", label: "Get registered agent service" }}
       />
     </>

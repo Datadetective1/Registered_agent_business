@@ -36,6 +36,14 @@ export async function getMarketingContext() {
     formationWithRaTotal: formatMoney(formationFeeCents + stateFeeCents + raPriceCents),
     raStates,
     raStatesLabel: raStates.map(stateName).join(", "),
+    /** Only claim nationwide coverage when every state is actually enabled. */
+    raNationwide: raStates.length >= 50,
+    raCoverageLabel: raStates.length >= 50 ? "All 50 states" : raStates.map(stateName).join(", "),
+    /** Who is listed as registered agent on state records (the wholesale partner). */
+    agentOfRecord: s.registeredAgent.agentOfRecordName || "our nationwide registered agent partner",
+    agentOfRecordNamed: Boolean(s.registeredAgent.agentOfRecordName),
+    renewalMessage: s.registeredAgent.renewalMessage,
+    changeOfAgentMessage: s.registeredAgent.changeOfAgentMessage,
   };
 }
 

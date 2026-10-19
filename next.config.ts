@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { US_STATES } from "./src/config/states";
+
+// State landing pages live at /{state}-registered-agent (e.g. /texas-registered-agent).
+const STATE_SLUGS = US_STATES.map((s) => s.slug).join("|");
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -29,6 +33,15 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async redirects() {
+    return [
+      { source: "/start-an-llc", destination: "/start-an-llc-texas", permanent: true },
+      { source: `/registered-agent/:state(${STATE_SLUGS})`, destination: "/:state-registered-agent", permanent: true },
+    ];
+  },
+  async rewrites() {
+    return [{ source: `/:state(${STATE_SLUGS})-registered-agent`, destination: "/registered-agent/:state" }];
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

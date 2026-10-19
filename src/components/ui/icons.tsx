@@ -107,3 +107,37 @@ export const ChevronDownIcon = (p: IconProps) => (
     <path d="M6 9l6 6 6-6" />
   </svg>
 );
+export const GlobeIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z" />
+  </svg>
+);
+export const BellIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M6 16V11a6 6 0 1112 0v5l1.5 2h-15L6 16z" />
+    <path d="M10 20a2 2 0 004 0" />
+  </svg>
+);
+export const ScaleIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v16M7 20h10M5 7h14M5 7l-3 6a3 3 0 006 0L5 7zM19 7l-3 6a3 3 0 006 0l-3-6z" />
+  </svg>
+);
+export const TagIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 12V4h8l10 10-8 8L3 12z" />
+    <circle cx="7.5" cy="8.5" r="1.25" />
+  </svg>
+);
+export const ChatIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 5h16v11H9l-5 4V5z" />
+  </svg>
+);
+export const CalendarIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+  </svg>
+);

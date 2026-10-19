@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/site/json-ld";
 import { CtaBand, Disclosure, FaqList, FeatureList, Hero, PriceCard, SectionHeading } from "@/components/site/marketing";
+import { TrackEvent } from "@/components/site/track-event";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/layout";
-import { stateBySlug } from "@/config/states";
+import { stateBySlug, statePagePath } from "@/config/states";
 import { findFaqs } from "@/content/faq";
 import { STATE_CONTENT } from "@/content/states";
 import { getMarketingContext } from "@/server/marketing";
@@ -24,9 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ state: st
   if (!data) return {};
   const { st, c } = data;
   return pageMetadata({
-    title: `${st.name} Registered Agent Service: ${c.raPrice}/year`,
+    title: `${st.name} Registered Agent: ${c.raPrice}/Year, No Setup Fee`,
     description: `${st.name} registered agent service for ${c.raPrice} per year. ${st.name} requirements, how to appoint or change your agent, and how documents are delivered.`,
-    path: `/registered-agent/${st.slug}`,
+    path: statePagePath(st.slug),
   });
 }
 
@@ -34,15 +35,22 @@ export default async function StatePage({ params }: { params: Promise<{ state: s
   const data = await load((await params).state);
   if (!data) notFound();
   const { st, c, content } = data;
-  const faqs = findFaqs(c, ["Can I be my own registered agent?", "How do I switch my registered agent?", "Can I use the registered agent address as my business mailing address?", "Who is listed as the registered agent on state records?"]);
+  const faqs = findFaqs(c, [
+    "Can I be my own registered agent?",
+    "I already have a registered agent. How do I switch?",
+    "Can I use the registered agent address as my business address?",
+    "Who is listed as the registered agent on state records?",
+    "How much does registered agent service cost?",
+  ]);
 
   return (
     <>
+      <TrackEvent name="registered_agent_page_viewed" />
       <JsonLd
         data={await serviceJsonLd({
           name: `${st.name} Registered Agent Service`,
           description: content.intro,
-          path: `/registered-agent/${st.slug}`,
+          path: statePagePath(st.slug),
           priceCents: c.raPriceCents,
           areaServed: st.name,
           recurring: true,
@@ -52,7 +60,7 @@ export default async function StatePage({ params }: { params: Promise<{ state: s
         data={breadcrumbJsonLd([
           { name: "Home", path: "/" },
           { name: "Registered Agent", path: "/registered-agent" },
-          { name: st.name, path: `/registered-agent/${st.slug}` },
+          { name: st.name, path: statePagePath(st.slug) },
         ])}
       />
       <JsonLd data={faqJsonLd(faqs)} />
@@ -90,7 +98,8 @@ export default async function StatePage({ params }: { params: Promise<{ state: s
             <FeatureList className="mt-6" items={content.appointing} />
             <div className="mt-8">
               <Disclosure title="Registered agent address only">
-                Our registered agent address is only for service of process and official state correspondence, not general mail.
+                Our registered agent address is only for legal papers and official state notices. Don&apos;t use it for banking, marketplace
+                accounts, insurance, Google Business Profile verification or general mail.
               </Disclosure>
             </div>
           </div>
@@ -111,7 +120,7 @@ export default async function StatePage({ params }: { params: Promise<{ state: s
                 </span>
               ))}
               . This page is general information, not legal advice. See also{" "}
-              <Link href="/start-an-llc" className="underline underline-offset-2">
+              <Link href="/start-an-llc-texas" className="underline underline-offset-2">
                 forming a Texas LLC
               </Link>
               .

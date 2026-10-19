@@ -12,10 +12,12 @@ export async function SiteFooter() {
       title: "Services",
       links: [
         { href: "/registered-agent", label: "Registered Agent" },
-        { href: "/start-an-llc", label: "Start a Texas LLC" },
+        { href: "/start-an-llc-texas", label: "Start a Texas LLC" },
+        { href: "/texas-registered-agent", label: "Texas Registered Agent" },
+        { href: "/texas-llc", label: "Texas LLC Guide" },
         { href: "/business-address", label: "Business Address" },
         { href: "/pricing", label: "Pricing" },
-        { href: "/registered-agent/states", label: "Registered Agent by State" },
+        { href: "/registered-agent/states", label: "Coverage by State" },
       ],
     },
     {

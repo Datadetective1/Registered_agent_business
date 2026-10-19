@@ -7,6 +7,11 @@
  *
  * All prices below are TEMPORARY placeholders.
  */
+import { US_STATES } from "./states";
+
+/** All 50 states (DC can be added in Admin → Services if the partner covers it). */
+const ALL_STATES = US_STATES.map((s) => s.code).filter((c) => c !== "DC");
+
 export type ServiceKind = "registered_agent" | "formation" | "business_address";
 export type BillingType = "one_time" | "annual" | "monthly";
 
@@ -60,16 +65,17 @@ export const catalogDefaults: CatalogService[] = [
       "Digital document delivery to your account",
       "Email notification when documents arrive",
       "Online account to manage your businesses",
-      "Renews annually — cancel auto-renewal anytime",
+      "Renews annually; turn off auto-renewal anytime",
     ],
-    config: { availableStates: ["TX"] },
+    // The wholesale partner covers every state; narrow this list in Admin if needed.
+    config: { availableStates: ALL_STATES },
   },
   {
     code: SERVICE_CODES.llcFormationTX,
     name: "Texas LLC Formation",
     kind: "formation",
     billing: "one_time",
-    priceCents: 4900,
+    priceCents: 14900,
     governmentFeeCents: 30000,
     governmentFeeLabel: "Texas Secretary of State filing fee",
     jurisdiction: "TX",

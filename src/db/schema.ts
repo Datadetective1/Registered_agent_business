@@ -96,6 +96,7 @@ export const paymentStatus = pgEnum("payment_status", [
 
 export const providerOperation = pgEnum("provider_operation", [
   "registered_agent",
+  "change_of_agent",
   "formation",
   "business_address",
   "ein",
@@ -337,6 +338,8 @@ export const orders = pgTable(
     /** Onboarding answers, validated by the zod schema for the order type. */
     intake: jsonb("intake").$type<Record<string, unknown> | null>(),
     intakeSubmittedAt: ts("intake_submitted_at"),
+    /** Unvalidated "save and finish later" onboarding answers (flat form values). */
+    intakeDraft: jsonb("intake_draft").$type<Record<string, string> | null>(),
     gateway: paymentGateway("gateway"),
     stripeCheckoutSessionId: text("stripe_checkout_session_id").unique(),
     stripePaymentIntentId: text("stripe_payment_intent_id"),

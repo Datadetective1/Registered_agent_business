@@ -19,7 +19,7 @@ const COMPARISON: Array<[string, string, string]> = [
   ["Purpose", "Receive legal papers (service of process) and official state notices", "Receive everyday business mail"],
   ["Required by the state?", "Yes, for LLCs and corporations in most states", "No, it's optional"],
   ["Where it appears", "On your public state filings as your registered office", "Wherever you choose to use it"],
-  ["Use for banking, vendors or customers?", "No", "Yes, where permitted by the institution"],
+  ["Use for banking, marketplaces, insurance or Google verification?", "No", "Permitted uses will be listed in the service terms at launch"],
 ];
 
 export default async function BusinessAddressPage() {

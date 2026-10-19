@@ -8,7 +8,7 @@ import { Logo } from "./logo";
 
 const NAV = [
   { href: "/registered-agent", label: "Registered Agent" },
-  { href: "/start-an-llc", label: "Start an LLC" },
+  { href: "/start-an-llc-texas", label: "Texas LLC" },
   { href: "/business-address", label: "Business Address" },
   { href: "/pricing", label: "Pricing" },
   { href: "/how-it-works", label: "How It Works" },
@@ -44,7 +44,7 @@ export async function SiteHeader() {
               <Link href="/sign-in" className="rounded-md px-3 py-2 text-[15px] text-ink/80 hover:bg-sand hover:text-ink">
                 Sign in
               </Link>
-              <ButtonLink href="/registered-agent#get-started">Get started</ButtonLink>
+              <ButtonLink href="/order/registered-agent">Get started</ButtonLink>
             </>
           )}
         </div>
@@ -79,7 +79,7 @@ export async function SiteHeader() {
                       </Link>
                     </li>
                     <li className="p-1">
-                      <ButtonLink href="/registered-agent#get-started" className="w-full">
+                      <ButtonLink href="/order/registered-agent" className="w-full">
                         Get started
                       </ButtonLink>
                     </li>

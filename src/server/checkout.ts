@@ -62,8 +62,7 @@ export async function startCheckout(input: {
     customerId: input.customer.id,
     metadata: { type: input.type, total: quote.totalCents, gateway: gateway.name },
   });
-  await track("checkout_started", {}, { orderType: input.type });
-  if (input.type === "llc_formation") await track("formation_started");
+  await track("payment_started", {}, { orderType: input.type });
   return { url, orderId: order.id };
 }
 

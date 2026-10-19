@@ -26,6 +26,11 @@ export const siteSettingsSchema = z.object({
   }),
   colors: z.object({ primary: hex, primaryHover: hex, accent: hex }),
   social: z.object({ linkedin: str(300), x: str(300), facebook: str(300) }),
+  registeredAgent: z.object({
+    agentOfRecordName: str(150),
+    renewalMessage: str(300).min(1, "Renewal message is required"),
+    changeOfAgentMessage: str(600).min(1, "Change-of-agent message is required"),
+  }),
   operations: z.object({
     adminNotificationEmail: z.email({ error: "Enter a valid email" }),
     renewalReminderDays: z

@@ -101,7 +101,7 @@ export function SectionHeading({ eyebrow, title, lead, center }: { eyebrow?: str
 
 export function Steps({ steps }: { steps: Array<{ title: string; body: ReactNode }> }) {
   return (
-    <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <ol className={cn("grid gap-6", steps.length === 3 ? "md:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4")}>
       {steps.map((s, i) => (
         <li key={s.title} className="rounded-lg border border-line bg-surface p-5">
           <span className="inline-flex size-8 items-center justify-center rounded-full border border-line-strong font-serif text-sm font-semibold text-brand">
@@ -173,6 +173,38 @@ export function TrustPoints({ items }: { items: string[] }) {
         <li key={t} className="flex items-center gap-1.5">
           <CheckIcon size={16} className="text-accent" />
           {t}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Row of short benefit statements with icons (e.g. under the hero). */
+export function BenefitStrip({ items }: { items: Array<{ icon: ReactNode; title: string; body?: string }> }) {
+  return (
+    <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((it) => (
+        <li key={it.title} className="flex gap-3">
+          <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-surface text-brand ring-1 ring-line">{it.icon}</span>
+          <span>
+            <span className="block text-[15px] font-semibold text-ink">{it.title}</span>
+            {it.body ? <span className="mt-0.5 block text-sm leading-relaxed text-muted">{it.body}</span> : null}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Grid of titled cards with an icon, used for "what you get" style sections. */
+export function InfoCards({ items, columns = 3 }: { items: Array<{ icon: ReactNode; title: string; body: ReactNode }>; columns?: 2 | 3 }) {
+  return (
+    <ul className={cn("grid gap-5 sm:grid-cols-2", columns === 3 && "lg:grid-cols-3")}>
+      {items.map((it) => (
+        <li key={it.title} className="rounded-lg border border-line bg-surface p-5">
+          <span className="inline-flex size-10 items-center justify-center rounded-md bg-sand text-brand">{it.icon}</span>
+          <h3 className="mt-4 font-sans text-base font-semibold">{it.title}</h3>
+          <div className="mt-1.5 text-[15px] leading-relaxed text-muted">{it.body}</div>
         </li>
       ))}
     </ul>

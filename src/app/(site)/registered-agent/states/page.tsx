@@ -3,7 +3,7 @@ import { JsonLd } from "@/components/site/json-ld";
 import { SectionHeading } from "@/components/site/marketing";
 import { Badge } from "@/components/ui/badge";
 import { Container, Section } from "@/components/ui/layout";
-import { US_STATES } from "@/config/states";
+import { statePagePath, US_STATES } from "@/config/states";
 import { STATE_CONTENT } from "@/content/states";
 import { getMarketingContext } from "@/server/marketing";
 import { breadcrumbJsonLd, pageMetadata } from "@/server/seo";
@@ -32,7 +32,11 @@ export default async function StatesPage() {
         <SectionHeading
           eyebrow="Coverage"
           title="Registered agent service by state"
-          lead={`We currently offer registered agent service for businesses in ${c.raStatesLabel || "select states"}. We're adding states over time; contact us if you need one that isn't available yet.`}
+          lead={
+            c.raNationwide
+              ? "Registered agent service is available for businesses registered in any of the 50 states, at the same annual price."
+              : `We currently offer registered agent service for businesses in ${c.raStatesLabel || "select states"}. Contact us if you need a state that isn't available yet.`
+          }
         />
         <ul className="mt-10 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {US_STATES.map((st) => {
@@ -41,7 +45,7 @@ export default async function StatesPage() {
             return (
               <li key={st.code} className="flex items-center justify-between rounded-md border border-line bg-surface px-4 py-3">
                 {hasPage ? (
-                  <Link href={`/registered-agent/${st.slug}`} className="font-medium text-brand hover:underline">
+                  <Link href={statePagePath(st.slug)} className="font-medium text-brand hover:underline">
                     {st.name}
                   </Link>
                 ) : (

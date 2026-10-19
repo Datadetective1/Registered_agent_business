@@ -100,7 +100,7 @@ export default async function HowItWorksPage() {
         title="Get started today"
         body="Most customers finish checkout and onboarding in under ten minutes."
         primary={{ href: "/order/registered-agent", label: "Get registered agent service" }}
-        secondary={{ href: "/start-an-llc", label: "Start a Texas LLC" }}
+        secondary={{ href: "/start-an-llc-texas", label: "Start a Texas LLC" }}
       />
     </>
   );

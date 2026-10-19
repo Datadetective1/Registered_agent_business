@@ -37,9 +37,9 @@ describe("quotes", () => {
     const own = await quoteOrder("llc_formation", { raChoice: "own" });
     expect(own.lines.map((l) => l.kind)).toEqual(["service", "government_fee"]);
     expect(own.governmentFeesCents).toBe(30000);
-    expect(own.totalCents).toBe(4900 + 30000);
+    expect(own.totalCents).toBe(14900 + 30000);
     const ours = await quoteOrder("llc_formation", { raChoice: "ours" });
-    expect(ours.totalCents).toBe(4900 + 30000 + 9900);
+    expect(ours.totalCents).toBe(14900 + 30000 + 9900);
   });
   it("refuses inactive services", async () => {
     await expect(quoteOrder("business_address")).rejects.toBeInstanceOf(OrderError);
