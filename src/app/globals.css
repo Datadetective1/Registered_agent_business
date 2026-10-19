@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/*
+ * Brand colors are injected on <html> from settings (see app/layout.tsx).
+ * These fallbacks match src/config/site.ts.
+ */
+:root {
+  --brand-primary: #0f2b46;
+  --brand-primary-hover: #0a2034;
+  --brand-accent: #1f6b57;
+}
+
+@theme inline {
+  --color-brand: var(--brand-primary);
+  --color-brand-hover: var(--brand-primary-hover);
+  --color-accent: var(--brand-accent);
+
+  --color-ink: #1b2430;
+  --color-muted: #5b6573;
+  --color-subtle: #8a929c;
+  --color-line: #e3e1da;
+  --color-line-strong: #cfccc2;
+  --color-paper: #faf9f6;
+  --color-sand: #f4f3ef;
+  --color-surface: #ffffff;
+
+  --color-info-bg: #eef3f8;
+  --color-info-fg: #1d4a73;
+  --color-success-bg: #eaf4ef;
+  --color-success-fg: #1f6b4a;
+  --color-warning-bg: #fbf4e4;
+  --color-warning-fg: #7a5413;
+  --color-danger-bg: #fbeceb;
+  --color-danger-fg: #9b2c25;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Source Serif 4 Variable", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-serif text-ink;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  }
+  details > summary {
+    list-style: none;
+  }
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+/* Long-form content: legal pages and guides. */
+@layer components {
+  .prose-content {
+    @apply text-[16px] leading-[1.75] text-ink;
+    max-width: 72ch;
+  }
+  .prose-content h2 {
+    @apply mt-10 mb-3 text-2xl font-semibold;
+  }
+  .prose-content h3 {
+    @apply mt-8 mb-2 text-xl font-semibold;
+  }
+  .prose-content p {
+    @apply my-4;
+  }
+  .prose-content ul,
+  .prose-content ol {
+    @apply my-4 pl-6;
+  }
+  .prose-content ul {
+    @apply list-disc;
+  }
+  .prose-content ol {
+    @apply list-decimal;
+  }
+  .prose-content li {
+    @apply my-1.5;
+  }
+  .prose-content a {
+    @apply text-brand underline underline-offset-2 hover:text-brand-hover;
+  }
+  .prose-content strong {
+    @apply font-semibold;
+  }
+  .prose-content blockquote {
+    @apply my-6 border-l-4 border-line-strong pl-4 text-muted;
+  }
+  .prose-content table {
+    @apply my-6 w-full border-collapse text-sm;
+  }
+  .prose-content th,
+  .prose-content td {
+    @apply border border-line px-3 py-2 text-left align-top;
+  }
+  .prose-content th {
+    @apply bg-sand font-semibold;
+  }
+  .prose-content hr {
+    @apply my-10 border-line;
+  }
+}
