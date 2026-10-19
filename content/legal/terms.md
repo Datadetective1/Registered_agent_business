@@ -25,8 +25,8 @@ We describe each service, what it includes, and its price on our website and at 
 Additional terms apply to specific services:
 
 - [Registered Agent Service Terms](/legal/registered-agent-terms)
-- [Business Formation Disclaimer](/legal/formation-disclaimer)
-- [Business Address & Mail Service Terms](/legal/mail-address-terms)
+- [Business Formation Terms](/legal/formation-disclaimer)
+- [Business Address Terms](/legal/mail-address-terms)
 
 ## 4. Your responsibilities
 

@@ -34,9 +34,9 @@ export const orderConfirmation: Template<{
     ? "Payment received. One more step: complete your business information."
     : "Payment received. We'll keep you updated.",
   blocks: [
-    heading("Thank you, your payment was received"),
+    heading("We received your order"),
     p(`Hi ${d.firstName},`),
-    p(`We've received your order for ${d.productName}.`),
+    p(`Thank you. Your payment went through and your order for ${d.productName} is in.`),
     details([
       ["Order", `#${d.orderNumber}`],
       ...d.items.map((i): [string, string] => [i.description, formatMoney(i.totalCents)]),
@@ -44,8 +44,8 @@ export const orderConfirmation: Template<{
     ]),
     ...(d.needsOnboarding
       ? [
-          p("Next step: tell us about your business so we can start your order. It takes about five minutes."),
-          button("Complete your business information", ctx.url(`/account/orders/${d.orderId}/onboarding`), ctx.brand.primaryColor),
+          p("Next step: answer a few questions about your business so we can get started. It takes about five minutes, and we've filled in what you gave us at checkout."),
+          button("Continue to business details", ctx.url(`/account/orders/${d.orderId}/onboarding`), ctx.brand.primaryColor),
         ]
       : [button("View your order", ctx.url(`/account/orders/${d.orderId}`), ctx.brand.primaryColor)]),
     small("Your receipt is available under Billing in your account."),
@@ -227,6 +227,32 @@ export const paymentSucceeded: Template<{ firstName: string; description: string
   ],
 });
 
+export const renewalSucceeded: Template<{
+  firstName: string;
+  entityName: string;
+  entityId: string;
+  serviceName: string;
+  amountCents: number;
+  nextRenewalDate: Date | null;
+  receiptUrl: string | null;
+}> = (d, ctx) => ({
+  subject: `${d.serviceName} renewed for ${d.entityName}`,
+  preheader: `Renewed for ${formatMoney(d.amountCents)}. No action needed.`,
+  blocks: [
+    heading("Your service has renewed"),
+    p(`Hi ${d.firstName},`),
+    p(`Your ${d.serviceName} for ${d.entityName} renewed for another year. We charged your saved payment method ${formatMoney(d.amountCents)}. You don't need to do anything.`),
+    details([
+      ["Business", d.entityName],
+      ["Amount", formatMoney(d.amountCents)],
+      ["Next renewal", d.nextRenewalDate ? formatDate(d.nextRenewalDate) : "Shown in your account"],
+    ]),
+    button("View your business", ctx.url(`/account/entities/${d.entityId}`), ctx.brand.primaryColor),
+    small(d.receiptUrl ? `Your receipt: ${d.receiptUrl}` : "Your receipt is available under Billing in your account. You can turn off auto-renewal there anytime."),
+    signoff(ctx),
+  ],
+});
+
 export const paymentFailed: Template<{ firstName: string; description: string; amountCents: number }> = (d, ctx) => ({
   subject: "Action needed: your payment didn't go through",
   preheader: `We couldn't process ${formatMoney(d.amountCents)} for ${d.description}.`,
@@ -312,7 +338,7 @@ export const adminNewOrder: Template<{ orderNumber: number; orderId: string; pro
 });
 
 export const adminOrderReady: Template<{ orderNumber: number; orderId: string; productName: string }> = (d, ctx) => ({
-  subject: `[Ready for fulfillment] #${d.orderNumber} ${d.productName}`,
+  subject: `[Ready for provider] #${d.orderNumber} ${d.productName}`,
   preheader: "Customer information received. Place the order with the provider.",
   blocks: [
     p(`Order #${d.orderNumber} has complete customer information and is ready to place with the wholesale provider.`),
@@ -394,6 +420,7 @@ export const templates = {
   renewal_reminder: renewalReminder,
   service_activated: serviceActivated,
   payment_succeeded: paymentSucceeded,
+  renewal_succeeded: renewalSucceeded,
   payment_failed: paymentFailed,
   renewal_cancelled: renewalCancelled,
   password_reset: passwordReset,

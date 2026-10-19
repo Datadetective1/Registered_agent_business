@@ -1,12 +1,12 @@
 ---
-title: Business Formation Disclaimer
+title: Business Formation Terms
 updated: DRAFT (not yet effective)
 ---
 <!--
 INTERNAL: DRAFT. Requires review by a licensed attorney before production launch.
 -->
 
-{{brand.name}} prepares and submits business formation filings based on the information you provide. Please read this disclaimer before ordering.
+{{brand.name}} prepares and submits business formation filings based on the information you provide. Please read these terms before ordering.
 
 ## We are a filing service, not a law firm
 

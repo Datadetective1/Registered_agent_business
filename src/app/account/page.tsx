@@ -31,10 +31,10 @@ export default async function AccountOverviewPage() {
             Action needed
           </h2>
           {actions.onboarding.map((o) => (
-            <Alert key={o.id} tone="warning" title={`Complete your business information for order ${orderNumberLabel(o.number)}`}>
-              We can&apos;t start your {ORDER_TYPE_LABEL[o.type]} order until we have it.{" "}
+            <Alert key={o.id} tone="warning" title={`Tell us about your business (order ${orderNumberLabel(o.number)})`}>
+              It takes about five minutes, and we can&apos;t start your {ORDER_TYPE_LABEL[o.type]} order until we have it.{" "}
               <Link className="font-medium underline" href={`/account/orders/${o.id}/onboarding`}>
-                Continue
+                Continue to business details
               </Link>
             </Alert>
           ))}

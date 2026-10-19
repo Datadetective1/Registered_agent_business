@@ -4,8 +4,8 @@ export const LEGAL_DOCS = [
   { slug: "privacy", title: "Privacy Policy", shortTitle: "Privacy Policy" },
   { slug: "refund-policy", title: "Refund Policy", shortTitle: "Refund Policy" },
   { slug: "registered-agent-terms", title: "Registered Agent Service Terms", shortTitle: "Registered Agent Terms" },
-  { slug: "formation-disclaimer", title: "Business Formation Disclaimer", shortTitle: "Formation Disclaimer" },
-  { slug: "mail-address-terms", title: "Business Address & Mail Service Terms", shortTitle: "Mail & Address Terms" },
+  { slug: "formation-disclaimer", title: "Business Formation Terms", shortTitle: "Business Formation Terms" },
+  { slug: "mail-address-terms", title: "Business Address Terms", shortTitle: "Business Address Terms" },
 ] as const;
 
 export type LegalSlug = (typeof LEGAL_DOCS)[number]["slug"];

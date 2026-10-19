@@ -179,20 +179,24 @@ async function onInvoicePaid(invoice: Stripe.Invoice, deps: StripeDeps) {
   const sub = await findSubscription(invoiceSubscriptionId(invoice));
   if (!sub) return;
   const previous = await upsertInvoicePayment(invoice, sub, "succeeded");
-  await syncSubscription(subscriptionSyncFromStripe(await deps.retrieveSubscription(sub.stripeSubscriptionId as string)));
+  const synced = subscriptionSyncFromStripe(await deps.retrieveSubscription(sub.stripeSubscriptionId as string));
+  await syncSubscription(synced);
   await audit({ actor: STRIPE, action: "subscription.renewed", targetType: "subscription", targetId: sub.id, customerId: sub.customerId, metadata: { invoice: invoice.id, amount: invoice.amount_paid } });
   if (previous?.status === "succeeded") return; // already notified
   const row = await customerAndEntity(sub);
   if (row) {
     await sendEmail({
-      template: "payment_succeeded",
+      template: "renewal_succeeded",
       to: row.customer.email,
       customerId: row.customer.id,
       entityId: row.entity.id,
       data: {
         firstName: row.customer.firstName,
-        description: `registered agent service renewal for ${row.entity.legalName}`,
+        entityName: row.entity.legalName,
+        entityId: row.entity.id,
+        serviceName: "Registered agent service",
         amountCents: invoice.amount_paid,
+        nextRenewalDate: synced.currentPeriodEnd,
         receiptUrl: invoice.hosted_invoice_url ?? null,
       },
     });

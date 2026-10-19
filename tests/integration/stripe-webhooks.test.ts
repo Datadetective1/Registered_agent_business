@@ -144,7 +144,7 @@ describe("renewals", () => {
     expect(renewal[0].status).toBe("succeeded");
     const [sub] = await db.select().from(subscriptions);
     expect(sub.currentPeriodEnd!.getTime()).toBe((NOW + 2 * YEAR) * 1000);
-    expect(await db.select().from(notifications).where(eq(notifications.template, "payment_succeeded"))).toHaveLength(1);
+    expect(await db.select().from(notifications).where(eq(notifications.template, "renewal_succeeded"))).toHaveLength(1);
   });
 
   it("records failed renewals, marks past due and emails on the first failure only", async () => {

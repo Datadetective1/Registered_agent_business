@@ -1,5 +1,5 @@
 ---
-title: Business Address & Mail Service Terms
+title: Business Address Terms
 updated: DRAFT (not yet effective)
 ---
 <!--
@@ -8,7 +8,7 @@ completed with the fulfillment partner's actual capabilities and reviewed by a l
 before the service is enabled.
 -->
 
-These terms will apply to the {{brand.name}} Business Address & Mail Service once it launches and supplement our [Terms of Service](/legal/terms).
+These terms will apply to the {{brand.name}} Business Address service once it launches and supplement our [Terms of Service](/legal/terms).
 
 ## Separate from registered agent service
 
